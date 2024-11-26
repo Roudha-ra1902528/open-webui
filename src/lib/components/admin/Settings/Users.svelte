@@ -2,11 +2,14 @@
 	import { getBackendConfig, getModelFilterConfig, updateModelFilterConfig } from '$lib/apis';
 	import { getSignUpEnabledStatus, toggleSignUpEnabledStatus } from '$lib/apis/auths';
 	import { getUserPermissions, updateUserPermissions } from '$lib/apis/users';
+	import { compareUserModels } from '$lib/utils';
 
 	import { onMount, getContext } from 'svelte';
 	import { models, config } from '$lib/stores';
 	import Switch from '$lib/components/common/Switch.svelte';
 	import { setDefaultModels } from '$lib/apis/configs';
+	import { getUsersModels, getUsers, setUsersModels } from '../../../apis/users';
+	import { user } from '../../../stores';
 
 	const i18n = getContext('i18n');
 
@@ -24,12 +27,21 @@
 		}
 	};
 
+	let users = [''];
 	let chatDeletion = true;
 	let chatEdit = true;
 	let chatTemporary = true;
 
+	let openDropdowns = {};
+	let userSelections = {};
+	let usersModels = {};
+
+	let userWhitelistEnabled = false;
+
 	onMount(async () => {
+		users = await getUsers(localStorage.token);
 		permissions = await getUserPermissions(localStorage.token);
+		usersModels = await getUsersModels(localStorage.token);
 
 		chatDeletion = permissions?.chat?.deletion ?? true;
 		chatEdit = permissions?.chat?.editing ?? true;
@@ -41,15 +53,77 @@
 			whitelistModels = res.models.length > 0 ? res.models : [''];
 		}
 
+		if (usersModels) userSelections = { ...usersModels };
+
 		defaultModelId = $config.default_models ? $config?.default_models.split(',')[0] : '';
 	});
+
+	function toggleOption(userId, option) {
+		if (userSelections[userId].includes(option))
+			userSelections[userId] = userSelections[userId].filter((item) => item !== option);
+		else userSelections[userId] = [...(userSelections[userId] || []), option];
+
+		userSelections = userSelections; // Trigger reactivity
+	}
+
+	function toggleDropdown(userId) {
+		// Toggle the current dropdown
+		openDropdowns[userId] = !openDropdowns[userId];
+
+		// Close all other dropdowns by setting their state to false
+		Object.keys(openDropdowns).forEach((key) => {
+			if (key !== userId.toString()) openDropdowns[key] = false;
+		});
+
+		openDropdowns = { ...openDropdowns }; // Trigger reactivity
+	}
+
+	// 	// Close all other dropdowns
+	// 	openDropdowns = Object.fromEntries(
+	// 	Object.keys(openDropdowns).map((key) => [key, false]) // Set all dropdowns to false
+	// );
+
+	// // Toggle the clicked dropdown
+	// openDropdowns[userId] = !openDropdowns[userId];
+	// openDropdowns = openDropdowns; // Trigger reactivity
+
+	let showGlobalDropdown = false;
+
+	// Function to handle selecting a model for all users
+	function selectModelForAllUsers(modelId) {}
+
+	// Close dropdowns when clicking outside
+	function handleClickOutside(event, userId) {
+		const dropdown = event.target.closest('.dropdown-container');
+		const globalDropdown = event.target.closest('.global-dropdown-container');
+
+		// Close individual user dropdowns if clicked outside
+		if (!dropdown && openDropdowns[userId]) {
+			openDropdowns[userId] = false;
+			openDropdowns = openDropdowns; // Trigger reactivity
+		}
+
+		// Close the global dropdown if clicked outside it
+		if (!globalDropdown && showGlobalDropdown) {
+			showGlobalDropdown = false;
+		}
+	}
+
+	let val = null;
+	let compute;
+	$: compute = compareUserModels(usersModels, userSelections);
 </script>
+
+<svelte:window
+	on:click={(event) => {
+		users.forEach((user) => handleClickOutside(event, user.id));
+		handleClickOutside(event, null); // Handle global dropdown "outside click"
+	}}
+/>
 
 <form
 	class="flex flex-col h-full justify-between space-y-3 text-sm"
 	on:submit|preventDefault={async () => {
-		// console.log('submit');
-
 		await setDefaultModels(localStorage.token, defaultModelId);
 		await updateUserPermissions(localStorage.token, {
 			chat: {
@@ -61,10 +135,11 @@
 		await updateModelFilterConfig(localStorage.token, whitelistEnabled, whitelistModels);
 		saveHandler();
 
-		await config.set(await getBackendConfig());
+		val = await config.set(await getBackendConfig());
+		await setUsersModels(localStorage.token, compareUserModels(usersModels, userSelections));
 	}}
 >
-	<div class=" space-y-3 overflow-y-scroll max-h-full">
+	<div class="space-y-3 max-h-full">
 		<div>
 			<div class=" mb-2 text-sm font-medium">{$i18n.t('User Permissions')}</div>
 
@@ -87,7 +162,15 @@
 			</div>
 		</div>
 
+		<!-- {JSON.stringify(usersModels ?? 'usersModels')}
+
 		<hr class=" dark:border-gray-850 my-2" />
+
+		{JSON.stringify(userSelections)}
+
+		<hr class=" dark:border-gray-850 my-2" />
+
+		{JSON.stringify(compute)} -->
 
 		<div class="mt-2 space-y-3">
 			<div>
@@ -102,13 +185,13 @@
 							<div class=" text-xs font-medium">{$i18n.t('Default Model')}</div>
 						</div>
 					</div>
-
 					<div class="flex-1 mr-2">
 						<select
 							class="w-full rounded-lg py-2 px-4 text-sm bg-gray-50 dark:text-gray-300 dark:bg-gray-850 outline-none"
 							bind:value={defaultModelId}
 							placeholder="Select a model"
 						>
+							<!-- all models here  -->
 							<option value="" disabled selected>{$i18n.t('Select a model')}</option>
 							{#each $models.filter((model) => model.id) as model}
 								<option value={model.id} class="bg-gray-100 dark:bg-gray-700">{model.name}</option>
@@ -197,7 +280,86 @@
 								</div>
 							</div>
 						</div>
+
+						<!-- <div class="h-4"></div> -->
 					{/if}
+
+					<div class="mb-2">
+						<div class="flex justify-between items-center text-xs my-3 pr-2">
+							<div class=" text-xs font-medium">{$i18n.t('User Whitelisting')}</div>
+						</div>
+					</div>
+
+					<!-- User Select-->
+					<div class="grid grid-cols-2 gap-x-12 gap-y-4 p-2">
+						<div
+							class="absolute inset-y-0 w-px bg-gray-200 left-1/2 transform -translate-x-1/2 scale-x-50"
+						></div>
+						{#each users as user (user.id)}
+							<div class="flex items-center space-x-4">
+								<!-- User Name -->
+								<div class="w-1/3">
+									{user.name} <span class="text-xs text-gray-400">{`(${user.email})`}</span>
+								</div>
+
+								<!-- Dropdown Container -->
+								<div class="dropdown-container relative w-2/3">
+									<!-- Selected Count Button -->
+									<button
+										type="button"
+										class="w-full p-2 text-left bg-gray-50 rounded flex justify-between items-center hover:border-gray-400"
+										on:click|stopPropagation={() => toggleDropdown(user.id)}
+									>
+										<span>
+											{userSelections[user.id]?.length || 0} models selected
+										</span>
+										<svg
+											xmlns="http://www.w3.org/2000/svg"
+											fill="none"
+											viewBox="0 0 24 24"
+											stroke="currentColor"
+											class="w-4 h-4 text-gray-500"
+										>
+											<path
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												stroke-width="2"
+												d="M19 9l-7 7-7-7"
+											/>
+										</svg>
+									</button>
+
+									<!-- Dropdown Options -->
+									{#if openDropdowns[user.id]}
+										<div
+											class="absolute top-11 w-full mt-1 max-h-48 overflow-y-auto bg-white border-gray-50 rounded shadow-lg z-10"
+										>
+											{#each $models.filter((model) => model.id) as model}
+												<div
+													class="p-2 cursor-pointer hover:bg-gray-100 flex items-center gap-2"
+													class:bg-blue-50={userSelections[user.id]?.includes(model.id)}
+													on:click|stopPropagation={() => toggleOption(user.id, model.id)}
+												>
+													<div
+														class="w-4 h-4 border rounded flex items-center justify-center {userSelections[
+															user.id
+														]?.includes(model.id)
+															? 'bg-blue-500 border-blue-500'
+															: 'border-gray-300'}"
+													>
+														{#if userSelections[user.id]?.includes(model)}
+															<span class="text-white text-xs">✓</span>
+														{/if}
+													</div>
+													{model.name}
+												</div>
+											{/each}
+										</div>
+									{/if}
+								</div>
+							</div>
+						{/each}
+					</div>
 				</div>
 			</div>
 		</div>
@@ -212,3 +374,46 @@
 		</button>
 	</div>
 </form>
+
+<!-- Global Select -->
+<!-- <div class="mr-2 grid grid-cols-1 col-span-2 mb-6 global-dropdown-container relative">
+	<div class="relative w-full">
+		<button
+			type="button"
+			class="rounded-lg w-full p-2 text-left bg-gray-50 border-gray-300 rounded flex justify-between items-center hover:border-gray-400"
+			on:click={() => (showGlobalDropdown = !showGlobalDropdown)}
+		>
+			<span>&nbsp;&nbsp;Select a model</span>
+			<svg
+				xmlns="http://www.w3.org/2000/svg"
+				fill="none"
+				viewBox="0 0 24 24"
+				stroke="currentColor"
+				class="w-4 h-4 text-gray-500"
+			>
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+			</svg>
+		</button>
+
+		{#if showGlobalDropdown}
+			<div
+				class="absolute top-11 w-full mt-1 max-h-48 overflow-y-auto bg-white border-gray-300 rounded shadow-lg z-10"
+			>
+				{#each $models.filter((model) => model.id) as model}
+					<div
+						class="p-2 cursor-pointer hover:bg-gray-100 flex items-center gap-2"
+						on:click={() => selectModelForAllUsers(model.id)}
+					>
+						<div class="w-4 h-4 border rounded flex items-center justify-center">
+
+							{#if users.every((user) => userSelections[user.id]?.includes(model.id))}
+								<span class="text-blue-500 text-xs">✓</span>
+							{/if}
+						</div>
+						{model.name}
+					</div>
+				{/each}
+			</div>
+		{/if}
+	</div>
+</div> -->

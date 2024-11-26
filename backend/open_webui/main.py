@@ -1079,15 +1079,15 @@ async def get_models(user=Depends(get_verified_user)):
         if "pipeline" not in model or model["pipeline"].get("type", None) != "filter"
     ]
 
-    if app.state.config.ENABLE_MODEL_FILTER:
-        if user.role == "user":
-            models = list(
-                filter(
-                    lambda model: model["id"] in app.state.config.MODEL_FILTER_LIST,
-                    models,
-                )
-            )
-            return {"data": models}
+    # if app.state.config.ENABLE_MODEL_FILTER:
+    #     if user.role == "user":
+    #         models = list(
+    #             filter(
+    #                 lambda model: model["id"] in app.state.config.MODEL_FILTER_LIST,
+    #                 models,
+    #             )
+    #         )
+    #         return {"data": models}
 
     return {"data": models}
 
@@ -2272,8 +2272,21 @@ async def get_app_config(request: Request):
     }
 
 
+# ENABLE_MODEL_FILTER = PersistentConfig(
+#     "ENABLE_MODEL_FILTER",
+#     "model_filter.enable",
+#     os.environ.get("ENABLE_MODEL_FILTER", "False").lower() == "true",
+# )
+
+# MODEL_FILTER_LIST = os.environ.get("MODEL_FILTER_LIST", "")
+# MODEL_FILTER_LIST = PersistentConfig(
+#     "MODEL_FILTER_LIST",
+#     "model_filter.list",
+#     [model.strip() for model in MODEL_FILTER_LIST.split(";")],
+# )
+
 @app.get("/api/config/model/filter")
-async def get_model_filter_config(user=Depends(get_admin_user)):
+async def get_model_filter_config():
     return {
         "enabled": app.state.config.ENABLE_MODEL_FILTER,
         "models": app.state.config.MODEL_FILTER_LIST,

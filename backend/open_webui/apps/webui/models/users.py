@@ -1,5 +1,5 @@
 import time
-from typing import Optional
+from typing import Optional, List, Dict
 
 from open_webui.apps.webui.internal.db import Base, JSONField, get_db
 from open_webui.apps.webui.models.chats import Chats
@@ -10,6 +10,15 @@ from sqlalchemy import BigInteger, Column, String, Text
 # User DB Schema
 ####################
 
+class UserModelss(Base):
+    __tablename__ = "user_model"
+    
+    id = Column(String, primary_key=True)        # User ID (Primary Key)
+    model = Column(String, primary_key=True)     # Model string (Primary Key)
+    
+class UserModelsListResponse(BaseModel):
+    models: List[str]
+    
 
 class User(Base):
     __tablename__ = "user"
@@ -106,6 +115,66 @@ class UsersTable:
                 return user
             else:
                 return None
+            
+    def update_users_models(self, updated_user_models: Dict[str, List[str]]) -> bool:
+        try:
+            with get_db() as db:  
+                user_ids_to_update = list(updated_user_models.keys())
+                db.query(UserModelss).filter(UserModelss.id.in_(user_ids_to_update)).delete(synchronize_session=False)
+
+                for user_id, models in updated_user_models.items():
+                    for model in models:
+                        new_entry = UserModelss(id=user_id, model=model)  # Create a new row
+                        db.add(new_entry)  
+
+                db.commit()
+                return True
+        except Exception as e:
+            print(f"Error updating user models: {e}")
+            return False
+        
+        
+    def get_users_models(self) -> Optional[Dict[int, List[str]]]:
+        try:
+            with get_db() as db:  # Ensure we have a DB session
+            # Step 1: Get all user IDs from the `User` table
+                users = db.query(User).all()  # Retrieve all users
+                user_ids = [user.id for user in users]  # Create a list of user IDs
+                
+                # Step 2: Get all records from the `UserModelss` table
+                user_models = db.query(UserModelss).all()
+                
+                # Step 3: Build a dictionary of user IDs and their associated models
+                user_models_dict = {user_id: [] for user_id in user_ids}  # Initialize with empty lists
+                
+                for user_model in user_models:
+                    user_id = user_model.id  # Extract the user ID from `UserModelss`
+                    model = user_model.model  # Extract the model
+                    # Add the model to the user's list in the dictionary
+                    if user_id in user_models_dict:
+                        user_models_dict[user_id].append(model)
+                
+            return user_models_dict if user_models_dict else None  # Return the dictionary or None if empty
+    
+        except Exception as e:
+            # Handle any exceptions that occur during the process
+            print(f"An error occurred: {e}")
+            return None
+    
+    def get_user_models(self, user_id: str) -> List[str]:
+        try:
+            with get_db() as db:  # Ensure we have a DB session
+                user_models = db.query(UserModelss).filter(UserModelss.id == user_id).all()
+                
+                if not user_models:
+                    return None
+                
+                models_list = [user_model.model for user_model in user_models]
+                
+                return models_list
+        except Exception as e:
+            print(f"Error fetching user models: {e}")
+            return None
 
     def get_user_by_id(self, id: str) -> Optional[UserModel]:
         try:

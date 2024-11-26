@@ -1,6 +1,90 @@
 import { WEBUI_API_BASE_URL } from '$lib/constants';
 import { getUserPosition } from '$lib/utils';
 
+export const setUsersModels = async (token: string, updatedUserModels: Record<string, string[]>) => {
+    let error = null;
+
+    const res = await fetch(`${WEBUI_API_BASE_URL}/users/models`, {
+        method: 'POST', // Use POST instead of GET
+        headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(updatedUserModels), // Add the payload as the request body
+    })
+        .then(async (res) => {
+            if (!res.ok) throw await res.json(); // Throw error response if the status is not OK
+            return res.json(); // Parse and return JSON response
+        })
+        .catch((err) => {
+            console.error(err); // Log the error
+            error = err.detail; // Extract the error detail (if present)
+            return null; // Return null on failure
+        });
+
+    if (error) {
+        throw error; // Throw the extracted error
+    }
+
+
+    return res; // Return the final response
+};
+
+export const getUsersModels = async (token: string) => {
+	let error = null;
+	
+	const res = await fetch(`${WEBUI_API_BASE_URL}/users/models`, {
+		method: 'GET',
+		headers: {
+			'Content-Type': 'application/json',
+			Authorization: `Bearer ${token}`
+		}
+	})
+		.then(async (res) => {
+			if (!res.ok) throw await res.json();
+			return res.json();
+		})
+		.catch((err) => {
+			console.log(err);
+			error = err.detail;
+			return null;
+		});
+
+	if (error) {
+		throw error;
+	}
+
+	return res;
+}
+
+export const getUserModels = async (token: string, userId: string) => {
+	let error = null;
+	
+	const res = await fetch(`${WEBUI_API_BASE_URL}/users/${userId}/models`, {
+		method: 'GET',
+		headers: {
+			'Content-Type': 'application/json',
+			Authorization: `Bearer ${token}`
+		}
+	})
+		.then(async (res) => {
+			if (!res.ok) throw await res.json();
+			return res.json();
+		})
+		.catch((err) => {
+			console.log(err);
+			error = err.detail;
+			return null;
+		});
+
+	if (error) {
+		throw error;
+	}
+
+	return res;
+}
+
+
 export const getUserPermissions = async (token: string) => {
 	let error = null;
 

@@ -8,6 +8,38 @@ import { TTS_RESPONSE_SPLIT } from '$lib/types';
 // Helper functions
 //////////////////////////
 
+export function compareUserModels(original, modified) {
+	const result = {};
+
+	// Loop through userIds in the original object to detect modifications or removals
+	for (const userId in original) {
+		if (modified.hasOwnProperty(userId)) {
+			const originalModels = original[userId];
+			const modifiedModels = modified[userId];
+
+			// Compare arrays directly: if different items exist OR lengths are different
+			const modelsAreDifferent = !arraysEqual(originalModels, modifiedModels);
+
+			if (modelsAreDifferent) {
+				result[userId] = modifiedModels; // Store the modified array
+			}
+		}
+	}
+
+	return result; // Return the difference
+}
+
+// Helper function to check if two arrays are equal (by value, not order)
+function arraysEqual(arr1, arr2) {
+	if (arr1.length !== arr2.length) return false;
+
+	// Sort both arrays and compare elements in the same order
+	const sortedArr1 = [...arr1].sort();
+	const sortedArr2 = [...arr2].sort();
+
+	return sortedArr1.every((value, index) => value === sortedArr2[index]);
+}
+
 export const replaceTokens = (content, char, user) => {
 	const charToken = /{{char}}/gi;
 	const userToken = /{{user}}/gi;

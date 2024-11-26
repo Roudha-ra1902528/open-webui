@@ -31,6 +31,7 @@ RUN npm ci
 
 COPY . .
 ENV APP_BUILD_HASH=${BUILD_HASH}
+ENV NODE_OPTIONS=--max-old-space-size=4096
 RUN npm run build
 
 ######## WebUI backend ########
@@ -110,6 +111,8 @@ RUN if [ "$USE_OLLAMA" = "true" ]; then \
     # Install pandoc and netcat
     apt-get install -y --no-install-recommends git build-essential pandoc netcat-openbsd curl && \
     apt-get install -y --no-install-recommends gcc python3-dev && \
+    # Install SQLite3
+    apt-get install -y sqlite3 && \
     # for RAG OCR
     apt-get install -y --no-install-recommends ffmpeg libsm6 libxext6 && \
     # install helper tools
@@ -123,6 +126,8 @@ RUN if [ "$USE_OLLAMA" = "true" ]; then \
     # Install pandoc, netcat and gcc
     apt-get install -y --no-install-recommends git build-essential pandoc gcc netcat-openbsd curl jq && \
     apt-get install -y --no-install-recommends gcc python3-dev && \
+    # Install SQLite3
+    apt-get install -y sqlite3 && \
     # for RAG OCR
     apt-get install -y --no-install-recommends ffmpeg libsm6 libxext6 && \
     # cleanup
@@ -149,7 +154,7 @@ RUN pip3 install uv && \
     fi; \
     chown -R $UID:$GID /app/backend/data/
 
-
+RUN 
 
 # copy embedding weight from build
 # RUN mkdir -p /root/.cache/chroma/onnx_models/all-MiniLM-L6-v2

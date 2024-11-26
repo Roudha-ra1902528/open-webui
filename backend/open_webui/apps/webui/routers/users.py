@@ -1,9 +1,10 @@
 import logging
-from typing import Optional
+from typing import Dict, List, Optional
 
 from open_webui.apps.webui.models.auths import Auths
 from open_webui.apps.webui.models.chats import Chats
 from open_webui.apps.webui.models.users import (
+    UserModelss,
     UserModel,
     UserRoleUpdateForm,
     Users,
@@ -35,7 +36,6 @@ async def get_users(skip: int = 0, limit: int = 50, user=Depends(get_admin_user)
 # User Permissions
 ############################
 
-
 @router.get("/permissions/user")
 async def get_user_permissions(request: Request, user=Depends(get_admin_user)):
     return request.app.state.config.USER_PERMISSIONS
@@ -63,7 +63,57 @@ async def update_user_role(form_data: UserRoleUpdateForm, user=Depends(get_admin
         status_code=status.HTTP_403_FORBIDDEN,
         detail=ERROR_MESSAGES.ACTION_PROHIBITED,
     )
+    
+    
+############################
+# GetUserModels
+############################
 
+    
+@router.post("/models")
+async def update_users_models(updated_user_models: Dict[str, List[str]], user=Depends(get_admin_user)):
+    users_models = Users.update_users_models(updated_user_models)
+    
+    if users_models:
+        return users_models
+    else:
+        raise HTTPException(
+            status_code=404, detail=f"Update user models failed"
+        )
+        
+        
+############################
+# GetUserModels
+############################
+
+    
+@router.get("/models")
+async def get_users_models(user=Depends(get_admin_user)):
+    users_models = Users.get_users_models()
+    
+    if users_models:
+        return users_models
+    else:
+        raise HTTPException(
+            status_code=404, detail=f"list of models not found"
+        )
+    
+############################
+# GetUserModels
+############################
+
+class UserModelsResponse(BaseModel):
+    user_models: str
+ 
+    
+@router.get("/{user_id}/models")
+async def get_user_models(user_id: str, user=Depends(get_verified_user)):     
+    user_models = Users.get_user_models(user_id)
+    
+    if user_models:
+        return user_models
+    else:
+        return []
 
 ############################
 # GetUserSettingsBySessionUser
