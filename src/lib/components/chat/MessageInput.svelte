@@ -344,7 +344,7 @@
 <FilesOverlay show={dragged} />
 
 {#if loaded}
-	<div class="w-full font-primary">
+	<div class="w-full font-primary z-10 relative">
 		<div class=" mx-auto inset-x-0 bg-transparent flex justify-center">
 			<div
 				class="flex flex-col px-3 {($settings?.widescreenMode ?? null)
@@ -685,6 +685,7 @@
 
 									{#if $settings?.richTextInput ?? true}
 										<div
+										dir='rtl'
 											class="scrollbar-hidden text-left bg-transparent dark:text-gray-100 outline-none w-full py-2.5 px-1 rounded-xl resize-none h-fit max-h-80 overflow-auto"
 										>
 											<RichTextInput

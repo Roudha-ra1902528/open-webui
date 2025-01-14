@@ -335,7 +335,7 @@
 	};
 </script>
 
-<div class={className}>
+<div class={`${className}`}>
 	{#if Object.keys(history?.messages ?? {}).length == 0}
 		<ChatPlaceholder
 			modelIds={selectedModels}
@@ -370,6 +370,11 @@
 		/>
 	{:else}
 		<div class="w-full pt-2">
+			<!-- Background Watermark -->
+			<div
+			class="w-[100rem] h-[70rem] absolute inset-0 opacity-15 bg-[url('/static/LOGO_NOTEXT_LIGHT_THEME.svg')] bg-center bg-no-repeat -z-10"
+		></div>
+
 			{#key chatId}
 				<div class="w-full">
 					{#if messages.at(0)?.parentId !== null}

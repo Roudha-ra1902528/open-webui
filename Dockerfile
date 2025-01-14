@@ -1,8 +1,8 @@
 # syntax=docker/dockerfile:1
 # Initialize device type args
 # use build args in the docker build command with --build-arg="BUILDARG=true"
-ARG USE_CUDA=false
-ARG USE_OLLAMA=false
+ARG USE_CUDA=true
+ARG USE_OLLAMA=true
 # Tested with cu117 for CUDA 11 and cu121 for CUDA 12 (default)
 ARG USE_CUDA_VER=cu121
 # any sentence transformer model; models to use can be found at https://huggingface.co/models?library=sentence-transformers
@@ -31,7 +31,9 @@ RUN npm ci
 
 COPY . .
 ENV APP_BUILD_HASH=${BUILD_HASH}
-RUN npm run build
+# RUN npm run build
+RUN NODE_OPTIONS='--max-old-space-size=16384' npm run build:fetch
+RUN NODE_OPTIONS='--max-old-space-size=16384' npm run build:vite
 
 ######## WebUI backend ########
 FROM python:3.11-slim-bookworm AS base

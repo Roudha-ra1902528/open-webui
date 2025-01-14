@@ -6,6 +6,9 @@ export default {
 	content: ['./src/**/*.{html,js,svelte,ts}'],
 	theme: {
 		extend: {
+			fontFamily: {
+				tajawal: ['Tajawal', 'serif'], // Adding Tajawal as a custom font
+			},
 			colors: {
 				gray: {
 					50: '#f9f9f9',

@@ -1,4 +1,11 @@
 @font-face {
+	font-family: "Tajawal";
+	src: url('/assets/fonts/Tajawal-Regular.ttf') format('truetype'); /* Regular */
+	font-weight: 400;
+	font-style: normal;
+}
+  
+@font-face {
 	font-family: 'Inter';
 	src: url('/assets/fonts/Inter-Variable.ttf');
 	font-display: swap;
@@ -22,8 +29,14 @@
 	font-display: swap;
 }
 
+
+.font-primary {
+	font-family: 'Tajawal';
+}
+
 html {
 	word-break: break-word;
+	font-family: 'Archivo';
 }
 
 code {
@@ -64,9 +77,7 @@ math {
 	@apply underline;
 }
 
-.font-primary {
-	font-family: 'Archivo', sans-serif;
-}
+
 
 iframe {
 	@apply rounded-lg;

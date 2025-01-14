@@ -7,7 +7,7 @@
 
 	const dispatch = createEventDispatcher();
 
-	import { config, user, models as _models, temporaryChatEnabled } from '$lib/stores';
+	import { config, user, theme, models as _models, temporaryChatEnabled } from '$lib/stores';
 	import { sanitizeResponseContent, findWordIndices } from '$lib/utils';
 	import { WEBUI_BASE_URL } from '$lib/constants';
 
@@ -86,7 +86,7 @@
 	onMount(() => {});
 </script>
 
-<div class="m-auto w-full max-w-6xl px-2 xl:px-20 translate-y-6 py-24 text-center">
+<div class="m-auto w-full max-w-6xl px-2 xl:px-20 translate-y-6 pb-24 text-center">
 	{#if $temporaryChatEnabled}
 		<Tooltip
 			content="This chat won't appear in history and your messages will not be saved."
@@ -102,9 +102,15 @@
 	<div
 		class="w-full text-3xl text-gray-800 dark:text-gray-100 font-medium text-center flex items-center gap-4 font-primary"
 	>
-		<div class="w-full flex flex-col justify-center items-center">
-			<div class="flex flex-row justify-center gap-3 sm:gap-3.5 w-fit px-5">
-				<div class="flex flex-shrink-0 justify-center">
+		<div class="w-full flex flex-col items-center">
+			{#if $theme === 'dark'}
+			<img src="static/LOGO_DARK_THEME.svg" alt="Logo" class="w-96 h-96" />
+			{:else}
+				<img src="static/LOGO_LIGHT_THEME.svg" alt="Logo" class="w-96 h-96" />
+			{/if}
+
+			<div class="flex flex-row justify-center gap-3 sm:gap-3.5 w-fit px-5 text-[#47535f]">
+				<!-- <div class="flex flex-shrink-0 justify-center">
 					<div class="flex -space-x-4 mb-0.5" in:fade={{ duration: 100 }}>
 						{#each models as model, modelIdx}
 							<Tooltip
@@ -133,10 +139,10 @@
 						{/each}
 					</div>
 				</div>
-
-				<div class=" text-3xl sm:text-4xl line-clamp-1" in:fade={{ duration: 100 }}>
+				 -->
+				<div class="text-3xl" in:fade={{ duration: 100 }}>
 					{#if models[selectedModelIdx]?.name}
-						{models[selectedModelIdx]?.name}
+						<!-- {models[selectedModelIdx]?.name} -->
 					{:else}
 						{$i18n.t('Hello, {{name}}', { name: $user.name })}
 					{/if}
@@ -210,7 +216,7 @@
 			</div>
 		</div>
 	</div>
-	<div class="mx-auto max-w-2xl font-primary" in:fade={{ duration: 200, delay: 200 }}>
+	<!-- <div class="mx-auto max-w-2xl font-primary" in:fade={{ duration: 200, delay: 200 }}>
 		<div class="mx-5">
 			<Suggestions
 				suggestionPrompts={models[selectedModelIdx]?.info?.meta?.suggestion_prompts ??
@@ -221,5 +227,5 @@
 				}}
 			/>
 		</div>
-	</div>
+	</div> -->
 </div>

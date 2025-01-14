@@ -13,6 +13,9 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+static/static/LOGO*
+*.tar
+
 # C extensions
 *.so
 
