@@ -213,7 +213,13 @@ class OAuthManager:
             raise HTTPException(400, detail=ERROR_MESSAGES.INVALID_CRED)
         provider_sub = f"{provider}@{sub}"
         email_claim = auth_manager_config.OAUTH_EMAIL_CLAIM
-        email = user_data.get(email_claim, "").lower()
+        email = user_data.get(email_claim, "")
+
+        if isinstance(email, list):
+            email = email[0] if email else ""
+        email = email.lower()
+            
+        # email = user_data.get(email_claim, "").lower()
         # We currently mandate that email addresses are provided
         if not email:
             log.warning(f"OAuth callback failed, email is missing: {user_data}")
@@ -248,8 +254,14 @@ class OAuthManager:
             # If the user does not exist, check if signups are enabled
             if auth_manager_config.ENABLE_OAUTH_SIGNUP:
                 # Check if an existing user with the same email already exists
+                email = user_data.get(email_claim, "")
+
+                if isinstance(email, list):
+                    email = email[0] if email else ""
+
+                email = email.lower()
                 existing_user = Users.get_user_by_email(
-                    user_data.get("email", "").lower()
+                    email
                 )
                 if existing_user:
                     raise HTTPException(400, detail=ERROR_MESSAGES.EMAIL_TAKEN)

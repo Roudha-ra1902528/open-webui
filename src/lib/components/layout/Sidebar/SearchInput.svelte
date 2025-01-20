@@ -98,6 +98,7 @@
 		</div>
 
 		<input
+			dir={$i18n.language === 'ar-BH' ? 'rtl' : 'ltr'}
 			class="w-full rounded-r-xl py-1.5 pl-2.5 pr-4 text-sm bg-transparent dark:text-gray-300 outline-none"
 			placeholder={placeholder ? placeholder : $i18n.t('Search')}
 			bind:value

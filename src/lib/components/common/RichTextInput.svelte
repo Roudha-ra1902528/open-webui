@@ -44,11 +44,29 @@
 
 	let element;
 	let editor;
+	let isRTL = false;
 
 	const options = {
 		throwOnError: false
 	};
 
+	const detectRTL = (text: string) => /[\u0600-\u06FF]/.test(text);
+
+	const updateDirection = () => {
+        setTimeout(() => {
+            const content = editor.getText(); // Fetch updated content
+            //isRTL = content.length === 0 || detectRTL(content); // RTL if empty or contains RTL text
+			isRTL = content.length === 0 ? detectRTL(placeholder) : detectRTL(content); // Direction based on placeholder if empty
+            
+            // Debugging log for content and direction
+            console.log('Content:', `"${content}"`, '| isRTL:', isRTL ? 'RTL' : 'LTR');
+
+            // Update editor's direction
+            element.setAttribute('dir', isRTL ? 'rtl' : 'ltr');
+            element.classList.toggle('text-right', isRTL); // Apply right alignment for RTL
+            element.classList.toggle('text-left', !isRTL); // Apply left alignment for LTR
+        }, 0); // Delay ensures content is fully updated
+};
 	// Function to find the next template in the document
 	function findNextTemplate(doc, from = 0) {
 		const patterns = [
@@ -126,6 +144,7 @@
 	};
 
 	onMount(async () => {
+		
 		console.log(value);
 
 		if (preserveBreaks) {
@@ -188,6 +207,9 @@
 			],
 			content: content,
 			autofocus: messageInput ? true : false,
+			onUpdate: () => {
+                updateDirection(); // Call language detection on every update
+            },
 			onTransaction: () => {
 				// force re-render so `editor.isActive` works as expected
 				editor = editor;
@@ -359,4 +381,5 @@
 	}
 </script>
 
-<div  bind:this={element} class="relative w-full min-w-full h-full min-h-fit {className}" />
+<div dir={detectRTL(placeholder) ? "rtl" : 'ltr'} bind:this={element} class="relative w-full min-w-full h-full min-h-fit {className}" />
+

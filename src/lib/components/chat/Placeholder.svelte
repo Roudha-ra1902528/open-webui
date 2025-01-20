@@ -104,9 +104,9 @@
 	>
 		<div class="w-full flex flex-col items-center">
 			{#if $theme === 'dark'}
-			<img src="static/LOGO_DARK_THEME.svg" alt="Logo" class="w-96 h-96" />
+			<img src="static/LOGO_DARK_THEME.svg" alt="Logo" class="w-96 h-96" draggable='false'/>
 			{:else}
-				<img src="static/LOGO_LIGHT_THEME.svg" alt="Logo" class="w-96 h-96" />
+				<img src="static/LOGO_LIGHT_THEME.svg" alt="Logo" class="w-96 h-96" draggable='false'/>
 			{/if}
 
 			<div class="flex flex-row justify-center gap-3 sm:gap-3.5 w-fit px-5 text-[#47535f]">
@@ -140,13 +140,13 @@
 					</div>
 				</div>
 				 -->
-				<div class="text-3xl" in:fade={{ duration: 100 }}>
+				<!-- <div class="text-3xl" in:fade={{ duration: 100 }}>
 					{#if models[selectedModelIdx]?.name}
-						<!-- {models[selectedModelIdx]?.name} -->
+						{models[selectedModelIdx]?.name}
 					{:else}
 						{$i18n.t('Hello, {{name}}', { name: $user.name })}
 					{/if}
-				</div>
+				</div> -->
 			</div>
 
 			<div class="flex mt-1 mb-2">

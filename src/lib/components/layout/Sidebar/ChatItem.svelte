@@ -192,6 +192,9 @@
 	});
 
 	let showDeleteConfirm = false;
+
+	  const isArabic = /[\u0600-\u06FF]/.test(title);
+  let textDir = isArabic ? 'rtl' : 'ltr'; // Determine direction
 </script>
 
 <ShareChatModal bind:show={showShareChatModal} chatId={id} />
@@ -221,7 +224,7 @@
 	</DragGhost>
 {/if}
 
-<div bind:this={itemElement} class=" w-full {className} relative group" {draggable}>
+<div  bind:this={itemElement} class=" w-full {className} relative group" {draggable}>
 	{#if confirmEdit}
 		<div
 			class=" w-full flex justify-between rounded-lg px-[11px] py-[6px] {id === $chatId ||
@@ -267,26 +270,27 @@
 			draggable="false"
 		>
 			<div class=" flex self-center flex-1 w-full">
-				<div class=" text-left self-center overflow-hidden w-full h-[20px]">
+				<div dir={textDir} class={`${textDir == 'rtl' ? 'text-right' : 'text-right'}  self-center overflow-hidden w-full h-[20px]`}>
 					{title}
 				</div>
 			</div>
 		</a>
 	{/if}
 
+	
 	<!-- svelte-ignore a11y-no-static-element-interactions -->
 	<div
-		class="
+    class="
         {id === $chatId || confirmEdit
-			? 'from-gray-200 dark:from-gray-900'
-			: selected
-				? 'from-gray-100 dark:from-gray-950'
-				: 'invisible group-hover:visible from-gray-100 dark:from-gray-950'}
-            absolute {className === 'pr-2'
-			? 'right-[8px]'
-			: 'right-0'}  top-[4px] py-1 pr-0.5 mr-1.5 pl-5 bg-gradient-to-l from-80%
-
-              to-transparent"
+            ? 'from-gray-200 dark:from-gray-900'
+            : selected
+                ? 'from-gray-100 dark:from-gray-950'
+                : 'invisible group-hover:visible from-gray-100 dark:from-gray-950'}
+        absolute 
+        { textDir == 'rtl' ? 'left-0' : 'left-0'}
+        top-[4px] py-1 pr-0.5 mr-1.5
+        { textDir == 'rtl' ? 'px-2' : 'px-2' }
+        bg-gradient-to-l from-80% to-transparent"
 		on:mouseenter={(e) => {
 			mouseOver = true;
 		}}
@@ -350,7 +354,7 @@
 				</Tooltip>
 			</div>
 		{:else}
-			<div class="flex self-center space-x-1 z-10">
+			<div class={`flex self-center space-x-1 z-10`}>
 				<ChatMenu
 					chatId={id}
 					cloneChatHandler={() => {
@@ -382,7 +386,7 @@
 				>
 					<button
 						aria-label="Chat Menu"
-						class=" self-center dark:hover:text-white transition"
+						class="self-center dark:hover:text-white transition"
 						on:click={() => {
 							dispatch('select');
 						}}

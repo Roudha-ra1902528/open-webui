@@ -285,6 +285,7 @@
 				id="messages-container"
 				bind:this={messagesContainerElement}
 			>
+			
 				<div class=" h-full w-full flex flex-col">
 					<div class="flex-1 p-1">
 						<Messages bind:messages />

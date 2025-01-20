@@ -318,7 +318,7 @@
 
 		await tick();
 
-		showMessage({ id: parentMessageId });
+		showMessage({ id: parentMessageId }, true);
 
 		// Update the chat
 		await updateChat();
@@ -334,8 +334,37 @@
 		}
 	};
 </script>
+<!-- 
+<div
+draggable="false"
+class="h-[180vh] w-full absolute flex items-center justify-center opacity-[0.15] -z-10 overflow-hidden -top-[10%]"
+>
+<img
+	style="max-width: none;"
+	src="/static/LOGO_NOTEXT_LIGHT_THEME.svg"
+	alt="Centered Watermark Image"
+	class="h-full w-[200vw]  "
+	draggable="false"
+/>
+</div>
+ -->
+
+<!-- h-[180vh] -->
+<div
+draggable="false"
+class="h-[180vh] w-full absolute flex items-center justify-center opacity-[0.15] -z-10 overflow-hidden -top-[10%]"
+>
+<img
+	style="max-width: none;"
+	src="/static/LOGO_NOTEXT_LIGHT_THEME.svg"
+	alt="Centered Watermark Image"
+	class="h-full w-[200vw]"
+	draggable="false"
+/>
+</div>
 
 <div class={`${className}`}>
+
 	{#if Object.keys(history?.messages ?? {}).length == 0}
 		<ChatPlaceholder
 			modelIds={selectedModels}
@@ -370,10 +399,6 @@
 		/>
 	{:else}
 		<div class="w-full pt-2">
-			<!-- Background Watermark -->
-			<div
-			class="w-[100rem] h-[70rem] absolute inset-0 opacity-15 bg-[url('/static/LOGO_NOTEXT_LIGHT_THEME.svg')] bg-center bg-no-repeat -z-10"
-		></div>
 
 			{#key chatId}
 				<div class="w-full">

@@ -1040,7 +1040,7 @@
 													window.setTimeout(() => {
 														document
 															.getElementById(`message-feedback-${message.id}`)
-															?.scrollIntoView();
+															// ?.scrollIntoView();
 													}, 0);
 												}}
 											>
@@ -1076,7 +1076,7 @@
 													window.setTimeout(() => {
 														document
 															.getElementById(`message-feedback-${message.id}`)
-															?.scrollIntoView();
+															// ?.scrollIntoView();
 													}, 0);
 												}}
 											>

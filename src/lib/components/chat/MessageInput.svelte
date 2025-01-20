@@ -685,10 +685,10 @@
 
 									{#if $settings?.richTextInput ?? true}
 										<div
-										dir='rtl'
 											class="scrollbar-hidden text-left bg-transparent dark:text-gray-100 outline-none w-full py-2.5 px-1 rounded-xl resize-none h-fit max-h-80 overflow-auto"
 										>
 											<RichTextInput
+												className='placeholder-ltr'
 												bind:this={chatInputElement}
 												bind:value={prompt}
 												id="chat-input"
@@ -699,7 +699,7 @@
 														navigator.maxTouchPoints > 0 ||
 														navigator.msMaxTouchPoints > 0
 													)}
-												placeholder={placeholder ? placeholder : $i18n.t('Send a Message')}
+												placeholder={placeholder}
 												largeTextAsFile={$settings?.largeTextAsFile ?? false}
 												autocomplete={true}
 												generateAutoCompletion={async (text) => {

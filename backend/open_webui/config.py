@@ -531,6 +531,32 @@ if frontend_splash.exists():
         logging.error(f"An error occurred: {e}")
 else:
     logging.warning(f"Frontend splash not found at {frontend_splash}")
+    
+def copy_additional_svgs():
+    files_to_copy = [
+        "LOGO_DARK_THEME.svg",
+        "LOGO_LIGHT_THEME.svg",
+        "LOGO_NOTEXT_DARK_THEME.svg",
+        "LOGO_NOTEXT_LIGHT_THEME.svg",
+    ]
+    
+    for file_name in files_to_copy:
+        source = FRONTEND_BUILD_DIR / "static" / file_name
+        destination = STATIC_DIR / file_name
+
+        # Ensure source file exists before copying
+        if source.exists():
+            try:
+                # Copy file into STATIC_DIR
+                shutil.copyfile(source, destination)
+                print(f"Copied {file_name} to {STATIC_DIR}")
+            except Exception as e:
+                logging.error(f"Failed to copy {file_name}: {e}")
+        else:
+            logging.warning(f"{file_name} not found in {source}")
+
+# Call the function to copy SVGs
+copy_additional_svgs()
 
 
 ####################################

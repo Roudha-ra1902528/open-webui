@@ -146,6 +146,7 @@ type Settings = {
 	num_batch?: string;
 	num_keep?: string;
 	options?: ModelOptions;
+	backgroundImageUrl?: string;
 };
 
 type ModelOptions = {

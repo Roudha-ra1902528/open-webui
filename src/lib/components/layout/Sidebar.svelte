@@ -472,10 +472,10 @@
 					</svg>
 				</div>
 			</button>
-
+			<!-- this -->
 			<a
 				id="sidebar-new-chat-button"
-				class="flex justify-between items-center flex-1 rounded-lg px-2 py-1 h-full text-right hover:bg-gray-100 dark:hover:bg-gray-900 transition"
+				class={`flex justify-between ${$i18n.language === 'ar-BH' ? ' flex-row-reverse rtl' : '  ltr'} items-center flex-1 rounded-lg px-2 py-1 h-full text-right hover:bg-gray-100 dark:hover:bg-gray-900 transition`}
 				href="/"
 				draggable="false"
 				on:click={async () => {
@@ -499,11 +499,12 @@
 							alt="logo"
 						/>
 					</div>
-					<div class=" self-center font-medium text-sm text-gray-850 dark:text-white font-primary">
+					<div
+						class={`self-center font-medium text-sm text-gray-850 dark:text-white font-primary mt-2`}
+					>
 						{$i18n.t('New Chat')}
 					</div>
 				</div>
-
 				<div>
 					<PencilSquare className=" size-5" strokeWidth="2" />
 				</div>
@@ -513,7 +514,7 @@
 		{#if $user?.role === 'admin' || $user?.permissions?.workspace?.models || $user?.permissions?.workspace?.knowledge || $user?.permissions?.workspace?.prompts || $user?.permissions?.workspace?.tools}
 			<div class="px-1.5 flex justify-center text-gray-800 dark:text-gray-200">
 				<a
-					class="flex-grow flex space-x-3 rounded-lg px-2 py-[7px] hover:bg-gray-100 dark:hover:bg-gray-900 transition"
+					class={`flex-grow flex ${$i18n.language === 'ar-BH' ? 'justify-between' : ''} space-x-3 rounded-lg px-2 py-[7px] hover:bg-gray-100 dark:hover:bg-gray-900 transition`}
 					href="/workspace"
 					on:click={() => {
 						selectedChatId = null;
@@ -742,16 +743,19 @@
 					/>
 				{/if}
 
-				<div class=" flex-1 flex flex-col overflow-y-auto scrollbar-hidden">
+				<div class={`flex-1 flex flex-col overflow-y-auto scrollbar-hidden  `}>
 					<div class="pt-1.5">
 						{#if $chats}
 							{#each $chats as chat, idx}
 								{#if idx === 0 || (idx > 0 && chat.time_range !== $chats[idx - 1].time_range)}
 									<div
-										class="w-full pl-2.5 text-xs text-gray-500 dark:text-gray-500 font-medium {idx ===
+										dir={$i18n.language === 'ar-BH' ? 'rtl' : 'ltr'}
+										class={`
+										${$i18n.language === 'ar-BH' ? 'pr-3 pt-2' : ''}
+										w-full pl-2.5 text-xs text-gray-500 dark:text-gray-500 font-medium {idx ===
 										0
 											? ''
-											: 'pt-5'} pb-1.5"
+											: 'pt-5'} pb-1.5`}
 									>
 										{$i18n.t(chat.time_range)}
 										<!-- localisation keys for time_range to be recognized from the i18next parser (so they don't get automatically removed):
@@ -836,7 +840,7 @@
 						}}
 					>
 						<button
-							class=" flex items-center rounded-xl py-2.5 px-2.5 w-full hover:bg-gray-100 dark:hover:bg-gray-900 transition"
+							class={` flex items-center rounded-xl py-2.5 px-2.5 w-full hover:bg-gray-100 dark:hover:bg-gray-900 transition`}
 							on:click={() => {
 								showDropdown = !showDropdown;
 							}}

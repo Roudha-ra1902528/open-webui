@@ -196,7 +196,7 @@
 		}
 	};
 
-	const showMessage = async (message) => {
+	const showMessage = async (message, isDelete=false) => {
 		const _chatId = JSON.parse(JSON.stringify($chatId));
 		let _messageId = JSON.parse(JSON.stringify(message.id));
 
@@ -214,8 +214,12 @@
 		await tick();
 
 		const messageElement = document.getElementById(`message-${message.id}`);
-		if (messageElement) {
+
+
+		if (messageElement && !isDelete) {
 			messageElement.scrollIntoView({ behavior: 'smooth' });
+		}else if(messageElement && isDelete) {
+			console.log('noscroll')
 		}
 
 		await tick();
@@ -1832,6 +1836,7 @@
 			: ''} w-full max-w-full flex flex-col"
 		id="chat-container"
 	>
+
 		{#if $settings?.backgroundImageUrl ?? null}
 			<div
 				class="absolute {$showSidebar
@@ -1893,7 +1898,7 @@
 				<div class="flex flex-col flex-auto z-10 w-full">
 					{#if $settings?.landingPageMode === 'chat' || createMessagesList(history.currentId).length > 0}
 						<div
-							class=" pb-2.5 flex flex-col justify-between w-full flex-auto overflow-auto h-0 max-w-full z-10 scrollbar-hidden"
+							class="pb-2.5 flex flex-col justify-between w-full flex-auto overflow-auto h-0 max-w-full z-10 scrollbar-hidden"
 							id="messages-container"
 							bind:this={messagesContainerElement}
 							on:scroll={(e) => {
@@ -1902,7 +1907,7 @@
 									messagesContainerElement.clientHeight + 5;
 							}}
 						>
-							<div class=" h-full w-full flex flex-col">
+							<div class="h-full w-full flex flex-col">
 								<Messages
 									chatId={$chatId}
 									bind:history

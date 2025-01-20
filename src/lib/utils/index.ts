@@ -776,7 +776,7 @@ export const promptTemplate = (
 	const currentTimezone = getUserTimezone();
 
 	// Get the user's language
-	const userLanguage = localStorage.getItem('locale') || 'en-US';
+	const userLanguage = localStorage.getItem('locale') || 'ar-BH';
 
 	// Replace {{CURRENT_DATETIME}} in the template with the formatted datetime
 	template = template.replace('{{CURRENT_DATETIME}}', `${formattedDate} ${currentTime}`);
