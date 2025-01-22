@@ -148,6 +148,12 @@
 		}
 
 		try {
+			console.log(`step 1: await uploadFile(${localStorage.token}, {
+    name: "${file.name}",
+    size: ${file.size},
+    type: "${file.type}",
+    lastModified: ${file.lastModified}
+})`);
 			const uploadedFile = await uploadFile(localStorage.token, file).catch((e) => {
 				toast.error(e);
 				return null;
@@ -355,6 +361,7 @@
 	};
 
 	const addFileHandler = async (fileId) => {
+		console.log(`step 2: await addFileToKnowledgeById(${localStorage.token}, ${id}, ${fileId})`);
 		const updatedKnowledge = await addFileToKnowledgeById(localStorage.token, id, fileId).catch(
 			(e) => {
 				toast.error(e);

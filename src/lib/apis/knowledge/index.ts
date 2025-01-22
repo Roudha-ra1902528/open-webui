@@ -180,6 +180,20 @@ export const updateKnowledgeById = async (token: string, id: string, form: Knowl
 export const addFileToKnowledgeById = async (token: string, id: string, fileId: string) => {
 	let error = null;
 
+	console.log(`
+		const res = await fetch(${WEBUI_API_BASE_URL}/knowledge/${id}/file/add, {
+		method: 'POST',
+		headers: {
+			Accept: 'application/json',
+			'Content-Type': 'application/json',
+			authorization: Bearer ${token}
+		},
+		body: JSON.stringify({
+			file_id: ${fileId}
+		})
+	})
+`)
+
 	const res = await fetch(`${WEBUI_API_BASE_URL}/knowledge/${id}/file/add`, {
 		method: 'POST',
 		headers: {

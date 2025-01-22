@@ -2,8 +2,8 @@ version: "3.9"  # Specify Docker Compose version
 
 services:
   openwebui_cpu:
-    image: openwebui_v4
-    container_name: openwebui_v4_latest
+    image: openwebui_v3
+    container_name: openwebui_v3_latest
     restart: always
     ports:
       - "3000:8080"
@@ -25,7 +25,46 @@ services:
     networks:
       - open-webui
 
+  pipelines:
+    depends_on:
+      - ollama
+    image: ghcr.io/open-webui/pipelines:main
+    container_name: pipelines
+    ports:
+      - "9099:9099"              
+    volumes:
+      - pipelines:/app/pipelines 
+    restart: always             
+    networks:
+      - open-webui 
+    extra_hosts:
+      - "host.docker.internal:host-gateway" 
+    environment:
+      DB_HOST: postgres           # Hostname of the Postgres service (name in the Docker network)
+      DB_PORT: 5432               # Default PostgreSQL port
+      DB_USER: postgres           # Postgres user
+      DB_PASSWORD: postgres       # Postgres password
+      DB_DATABASE: my_database    # Name of the database used by the pipelines service
+      OLLAMA_HOST: "http://ollama:11434" # Update with the correct host for Ollama
+      TEXT_TO_SQL_MODEL: "llama3.1:latest"             # Text-to-SQL model
+
+  postgres:
+    image: postgres:15-alpine      # Use a lightweight Postgres image
+    container_name: postgres
+    networks:
+      - open-webui 
+    ports:
+      - "5432:5432"               # Map Postgres port 5432 to the host
+    environment:
+      POSTGRES_USER: postgres     # Default Postgres user
+      POSTGRES_PASSWORD: postgres # Default Postgres password
+      POSTGRES_DB: my_database    # Default database name
+    volumes:
+      - postgres_data:/var/lib/postgresql/data # Persistent storage for Postgres
+
 volumes:
+  postgres_data:  
+  pipelines:
   open-webui:  # Volume for Open WebUI
   ollama:      # Volume for Ollama
 

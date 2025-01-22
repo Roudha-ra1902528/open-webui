@@ -5,6 +5,17 @@ export const uploadFile = async (token: string, file: File) => {
 	data.append('file', file);
 	let error = null;
 
+	console.log(`
+		const res = await fetch(${WEBUI_API_BASE_URL}/files/, {
+		method: 'POST',
+		headers: {
+			Accept: 'application/json',
+			authorization: Bearer ${token}
+		},
+		body: ${data}
+	})
+	`)
+
 	const res = await fetch(`${WEBUI_API_BASE_URL}/files/`, {
 		method: 'POST',
 		headers: {
