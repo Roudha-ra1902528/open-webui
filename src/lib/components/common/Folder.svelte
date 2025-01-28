@@ -153,6 +153,9 @@
 						self-center flex items-center`}
 						on:pointerup={(e) => {
 							e.stopPropagation();
+						}}
+						on:click={(e) => {
+							e.stopPropagation();
 							onAdd();
 						}}
 					>
