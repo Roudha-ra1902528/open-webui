@@ -200,7 +200,7 @@
 		}
 	};
 
-	const showMessage = async (message, isDelete=false) => {
+	const showMessage = async (message, isDelete = false) => {
 		const _chatId = JSON.parse(JSON.stringify($chatId));
 		let _messageId = JSON.parse(JSON.stringify(message.id));
 
@@ -219,11 +219,10 @@
 
 		const messageElement = document.getElementById(`message-${message.id}`);
 
-
 		if (messageElement && !isDelete) {
 			messageElement.scrollIntoView({ behavior: 'smooth' });
-		}else if(messageElement && isDelete) {
-			console.log('noscroll')
+		} else if (messageElement && isDelete) {
+			console.log('noscroll');
 		}
 
 		await tick();
@@ -1860,9 +1859,9 @@
 />
 
 <div
-	class="h-screen max-h-[100dvh] transition-width duration-200 ease-in-out {$showSidebar
-		? '  md:max-w-[calc(100%-260px)]'
-		: ' '} w-full max-w-full flex flex-col"
+	class="h-screen max-h-[100dvh] {$showSidebar
+		? 'md:max-w-[calc(100%-260px)]'
+		: ''} w-full max-w-full flex flex-col"
 	id="chat-container"
 >
 	{#if !chatIdProp || (loaded && chatIdProp)}
