@@ -297,7 +297,7 @@ class OAuthManager:
                     password=get_password_hash(
                         str(uuid.uuid4())
                     ),  # Random password, not used
-                    name=user_data.get("unique-name", "User"),
+                    name=user_data.get("unique_name", "User"),
                     profile_image_url=picture_url,
                     role=role,
                     oauth_sub=provider_sub,
