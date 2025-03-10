@@ -87,7 +87,13 @@
 	};
 
 	const cloneChatHandler = async (id) => {
-		const res = await cloneChatById(localStorage.token, id).catch((error) => {
+		const res = await cloneChatById(
+			localStorage.token,
+			id,
+			$i18n.t('Clone of {{TITLE}}', {
+				TITLE: title
+			})
+		).catch((error) => {
 			toast.error(`${error}`);
 			return null;
 		});
@@ -238,7 +244,7 @@
 				use:focusEdit
 				bind:value={chatTitle}
 				id="chat-title-input-{id}"
-				class=" bg-transparent w-full outline-none mr-10"
+				class=" bg-transparent w-full outline-hidden mr-10"
 			/>
 		</div>
 	{:else}

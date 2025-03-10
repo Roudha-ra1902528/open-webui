@@ -35,6 +35,7 @@
 
 	export let selectedToolIds = [];
 	export let imageGenerationEnabled = false;
+	export let codeInterpreterEnabled = false;
 	export let webSearchEnabled = false;
 
 	let models = [];
@@ -101,7 +102,7 @@
 	{/if}
 
 	<div
-		class="w-full text-3xl text-gray-800 dark:text-gray-100 font-medium text-center flex items-center gap-4 font-primary"
+		class="w-full text-3xl text-gray-800 dark:text-gray-100 text-center flex items-center gap-4 font-primary"
 	>
 		<div class="w-full flex flex-col items-center">
 			{#if $theme === 'dark'}
@@ -131,7 +132,7 @@
 											($i18n.language === 'dg-DG'
 												? `/doge.png`
 												: `${WEBUI_BASE_URL}/static/favicon.png`)}
-										class=" size-9 sm:size-10 rounded-full border-[1px] border-gray-200 dark:border-none"
+										class=" size-9 @sm:size-10 rounded-full border-[1px] border-gray-100 dark:border-none"
 										alt="logo"
 										draggable="false"
 									/>
@@ -189,11 +190,7 @@
 				</div>
 			</div>
 
-			<div
-				class="text-base font-normal xl:translate-x-6 md:max-w-3xl w-full py-3 {atSelectedModel
-					? 'mt-2'
-					: ''}"
-			>
+			<div class="text-base font-normal @md:max-w-3xl w-full py-3 {atSelectedModel ? 'mt-2' : ''}">
 				<MessageInput
 					{history}
 					{selectedModels}
@@ -202,6 +199,7 @@
 					bind:autoScroll
 					bind:selectedToolIds
 					bind:imageGenerationEnabled
+					bind:codeInterpreterEnabled
 					bind:webSearchEnabled
 					bind:atSelectedModel
 					{transparentBackground}
@@ -221,9 +219,11 @@
 	<!-- <div class="mx-auto max-w-2xl font-primary" in:fade={{ duration: 200, delay: 200 }}>
 		<div class="mx-5">
 			<Suggestions
-				suggestionPrompts={models[selectedModelIdx]?.info?.meta?.suggestion_prompts ??
+				suggestionPrompts={atSelectedModel?.info?.meta?.suggestion_prompts ??
+					models[selectedModelIdx]?.info?.meta?.suggestion_prompts ??
 					$config?.default_prompt_suggestions ??
 					[]}
+				inputValue={prompt}
 				on:select={(e) => {
 					selectSuggestionPrompt(e.detail);
 				}}
