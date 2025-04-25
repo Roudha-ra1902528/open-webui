@@ -1,79 +1,71 @@
 import { v4 as uuidv4 } from 'uuid';
 import sha256 from 'js-sha256';
 
-import dayjs from 'dayjs';
-import relativeTime from 'dayjs/plugin/relativeTime';
-import isToday from 'dayjs/plugin/isToday';
-import isYesterday from 'dayjs/plugin/isYesterday';
-import localizedFormat from 'dayjs/plugin/localizedFormat';
-
-dayjs.extend(relativeTime);
-dayjs.extend(isToday);
-dayjs.extend(isYesterday);
-dayjs.extend(localizedFormat);
-
 import { WEBUI_BASE_URL } from '$lib/constants';
 import { TTS_RESPONSE_SPLIT } from '$lib/types';
-
-import { marked } from 'marked';
-import markedExtension from '$lib/utils/marked/extension';
-import markedKatexExtension from '$lib/utils/marked/katex-extension';
-import hljs from 'highlight.js';
 
 //////////////////////////
 // Helper functions
 //////////////////////////
 
-export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+export function compareUserModels(original, modified) {
+	const result = {};
 
-function escapeRegExp(string: string): string {
-	return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+	// Loop through userIds in the original object to detect modifications or removals
+	for (const userId in original) {
+		if (modified.hasOwnProperty(userId)) {
+			const originalModels = original[userId];
+			const modifiedModels = modified[userId];
+
+			// Compare arrays directly: if different items exist OR lengths are different
+			const modelsAreDifferent = !arraysEqual(originalModels, modifiedModels);
+
+			if (modelsAreDifferent) {
+				result[userId] = modifiedModels; // Store the modified array
+			}
+		}
+	}
+
+	return result; // Return the difference
 }
 
-export const replaceTokens = (content, sourceIds, char, user) => {
-	const tokens = [
-		{ regex: /{{char}}/gi, replacement: char },
-		{ regex: /{{user}}/gi, replacement: user },
-		{
-			regex: /{{VIDEO_FILE_ID_([a-f0-9-]+)}}/gi,
-			replacement: (_, fileId) =>
-				`<video src="${WEBUI_BASE_URL}/api/v1/files/${fileId}/content" controls></video>`
-		},
-		{
-			regex: /{{HTML_FILE_ID_([a-f0-9-]+)}}/gi,
-			replacement: (_, fileId) =>
-				`<iframe src="${WEBUI_BASE_URL}/api/v1/files/${fileId}/content/html" width="100%" frameborder="0" onload="this.style.height=(this.contentWindow.document.body.scrollHeight+20)+'px';"></iframe>`
-		}
-	];
+// Helper function to check if two arrays are equal (by value, not order)
+function arraysEqual(arr1, arr2) {
+	if (arr1.length !== arr2.length) return false;
 
-	// Replace tokens outside code blocks only
-	const processOutsideCodeBlocks = (text, replacementFn) => {
-		return text
-			.split(/(```[\s\S]*?```|`[\s\S]*?`)/)
-			.map((segment) => {
-				return segment.startsWith('```') || segment.startsWith('`')
-					? segment
-					: replacementFn(segment);
-			})
-			.join('');
-	};
+	// Sort both arrays and compare elements in the same order
+	const sortedArr1 = [...arr1].sort();
+	const sortedArr2 = [...arr2].sort();
 
-	// Apply replacements
-	content = processOutsideCodeBlocks(content, (segment) => {
-		tokens.forEach(({ regex, replacement }) => {
-			if (replacement !== undefined && replacement !== null) {
-				segment = segment.replace(regex, replacement);
-			}
-		});
+	return sortedArr1.every((value, index) => value === sortedArr2[index]);
+}
 
-		if (Array.isArray(sourceIds)) {
-			sourceIds.forEach((sourceId, idx) => {
-				const regex = new RegExp(`\\[${idx + 1}\\]`, 'g');
-				segment = segment.replace(regex, `<source_id data="${idx + 1}" title="${sourceId}" />`);
-			});
-		}
+export const replaceTokens = (content, char, user) => {
+	const charToken = /{{char}}/gi;
+	const userToken = /{{user}}/gi;
+	const videoIdToken = /{{VIDEO_FILE_ID_([a-f0-9-]+)}}/gi; // Regex to capture the video ID
+	const htmlIdToken = /{{HTML_FILE_ID_([a-f0-9-]+)}}/gi; // Regex to capture the HTML ID
 
-		return segment;
+	// Replace {{char}} if char is provided
+	if (char !== undefined && char !== null) {
+		content = content.replace(charToken, char);
+	}
+
+	// Replace {{user}} if user is provided
+	if (user !== undefined && user !== null) {
+		content = content.replace(userToken, user);
+	}
+
+	// Replace video ID tags with corresponding <video> elements
+	content = content.replace(videoIdToken, (match, fileId) => {
+		const videoUrl = `${WEBUI_BASE_URL}/api/v1/files/${fileId}/content`;
+		return `<video src="${videoUrl}" controls></video>`;
+	});
+
+	// Replace HTML ID tags with corresponding HTML content
+	content = content.replace(htmlIdToken, (match, fileId) => {
+		const htmlUrl = `${WEBUI_BASE_URL}/api/v1/files/${fileId}/content/html`;
+		return `<iframe src="${htmlUrl}" width="100%" frameborder="0" onload="this.style.height=(this.contentWindow.document.body.scrollHeight+20)+'px';"></iframe>`;
 	});
 
 	return content;
@@ -92,6 +84,10 @@ export const sanitizeResponseContent = (content: string) => {
 
 export const processResponseContent = (content: string) => {
 	return content.trim();
+};
+
+export const revertSanitizedResponseContent = (content: string) => {
+	return content.replaceAll('&lt;', '<').replaceAll('&gt;', '>');
 };
 
 export function unescapeHtml(html: string) {
@@ -205,67 +201,6 @@ export const canvasPixelTest = () => {
 	return true;
 };
 
-export const compressImage = async (imageUrl, maxWidth, maxHeight) => {
-	return new Promise((resolve, reject) => {
-		const img = new Image();
-		img.onload = () => {
-			const canvas = document.createElement('canvas');
-			let width = img.width;
-			let height = img.height;
-
-			// Maintain aspect ratio while resizing
-
-			if (maxWidth && maxHeight) {
-				// Resize with both dimensions defined (preserves aspect ratio)
-
-				if (width <= maxWidth && height <= maxHeight) {
-					resolve(imageUrl);
-					return;
-				}
-
-				if (width / height > maxWidth / maxHeight) {
-					height = Math.round((maxWidth * height) / width);
-					width = maxWidth;
-				} else {
-					width = Math.round((maxHeight * width) / height);
-					height = maxHeight;
-				}
-			} else if (maxWidth) {
-				// Only maxWidth defined
-
-				if (width <= maxWidth) {
-					resolve(imageUrl);
-					return;
-				}
-
-				height = Math.round((maxWidth * height) / width);
-				width = maxWidth;
-			} else if (maxHeight) {
-				// Only maxHeight defined
-
-				if (height <= maxHeight) {
-					resolve(imageUrl);
-					return;
-				}
-
-				width = Math.round((maxHeight * width) / height);
-				height = maxHeight;
-			}
-
-			canvas.width = width;
-			canvas.height = height;
-
-			const context = canvas.getContext('2d');
-			context.drawImage(img, 0, 0, width, height);
-
-			// Get compressed image URL
-			const compressedUrl = canvas.toDataURL();
-			resolve(compressedUrl);
-		};
-		img.onerror = (error) => reject(error);
-		img.src = imageUrl;
-	});
-};
 export const generateInitialsImage = (name) => {
 	const canvas = document.createElement('canvas');
 	const ctx = canvas.getContext('2d');
@@ -301,142 +236,46 @@ export const generateInitialsImage = (name) => {
 	return canvas.toDataURL();
 };
 
-export const formatDate = (inputDate) => {
-	const date = dayjs(inputDate);
-	const now = dayjs();
+export const copyToClipboard = async (text) => {
+	let result = false;
+	if (!navigator.clipboard) {
+		const textArea = document.createElement('textarea');
+		textArea.value = text;
 
-	if (date.isToday()) {
-		return `Today at ${date.format('LT')}`;
-	} else if (date.isYesterday()) {
-		return `Yesterday at ${date.format('LT')}`;
-	} else {
-		return `${date.format('L')} at ${date.format('LT')}`;
-	}
-};
+		// Avoid scrolling to bottom
+		textArea.style.top = '0';
+		textArea.style.left = '0';
+		textArea.style.position = 'fixed';
 
-export const copyToClipboard = async (text, formatted = false) => {
-	if (formatted) {
-		const options = {
-			throwOnError: false,
-			highlight: function (code, lang) {
-				const language = hljs.getLanguage(lang) ? lang : 'plaintext';
-				return hljs.highlight(code, { language }).value;
-			}
-		};
-		marked.use(markedKatexExtension(options));
-		marked.use(markedExtension(options));
-
-		const htmlContent = marked.parse(text);
-
-		// Add basic styling to make the content look better when pasted
-		const styledHtml = `
-			<div>
-				<style>
-					pre {
-						background-color: #f6f8fa;
-						border-radius: 6px;
-						padding: 16px;
-						overflow: auto;
-					}
-					code {
-						font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-						font-size: 14px;
-					}
-					.hljs-keyword { color: #d73a49; }
-					.hljs-string { color: #032f62; }
-					.hljs-comment { color: #6a737d; }
-					.hljs-function { color: #6f42c1; }
-					.hljs-number { color: #005cc5; }
-					.hljs-operator { color: #d73a49; }
-					.hljs-class { color: #6f42c1; }
-					.hljs-title { color: #6f42c1; }
-					.hljs-params { color: #24292e; }
-					.hljs-built_in { color: #005cc5; }
-					blockquote {
-						border-left: 4px solid #dfe2e5;
-						padding-left: 16px;
-						color: #6a737d;
-						margin-left: 0;
-						margin-right: 0;
-					}
-					table {
-						border-collapse: collapse;
-						width: 100%;
-						margin-bottom: 16px;
-					}
-					table, th, td {
-						border: 1px solid #dfe2e5;
-					}
-					th, td {
-						padding: 8px 12px;
-					}
-					th {
-						background-color: #f6f8fa;
-					}
-				</style>
-				${htmlContent}
-			</div>
-		`;
-
-		// Create a blob with HTML content
-		const blob = new Blob([styledHtml], { type: 'text/html' });
+		document.body.appendChild(textArea);
+		textArea.focus();
+		textArea.select();
 
 		try {
-			// Create a ClipboardItem with HTML content
-			const data = new ClipboardItem({
-				'text/html': blob,
-				'text/plain': new Blob([text], { type: 'text/plain' })
-			});
-
-			// Write to clipboard
-			await navigator.clipboard.write([data]);
-			return true;
+			const successful = document.execCommand('copy');
+			const msg = successful ? 'successful' : 'unsuccessful';
+			console.log('Fallback: Copying text command was ' + msg);
+			result = true;
 		} catch (err) {
-			console.error('Error copying formatted content:', err);
-			// Fallback to plain text
-			return await copyToClipboard(text);
-		}
-	} else {
-		let result = false;
-		if (!navigator.clipboard) {
-			const textArea = document.createElement('textarea');
-			textArea.value = text;
-
-			// Avoid scrolling to bottom
-			textArea.style.top = '0';
-			textArea.style.left = '0';
-			textArea.style.position = 'fixed';
-
-			document.body.appendChild(textArea);
-			textArea.focus();
-			textArea.select();
-
-			try {
-				const successful = document.execCommand('copy');
-				const msg = successful ? 'successful' : 'unsuccessful';
-				console.log('Fallback: Copying text command was ' + msg);
-				result = true;
-			} catch (err) {
-				console.error('Fallback: Oops, unable to copy', err);
-			}
-
-			document.body.removeChild(textArea);
-			return result;
+			console.error('Fallback: Oops, unable to copy', err);
 		}
 
-		result = await navigator.clipboard
-			.writeText(text)
-			.then(() => {
-				console.log('Async: Copying to clipboard was successful!');
-				return true;
-			})
-			.catch((error) => {
-				console.error('Async: Could not copy text: ', error);
-				return false;
-			});
-
+		document.body.removeChild(textArea);
 		return result;
 	}
+
+	result = await navigator.clipboard
+		.writeText(text)
+		.then(() => {
+			console.log('Async: Copying to clipboard was successful!');
+			return true;
+		})
+		.catch((error) => {
+			console.error('Async: Could not copy text: ', error);
+			return false;
+		});
+
+	return result;
 };
 
 export const compareVersion = (latest, current) => {
@@ -449,14 +288,14 @@ export const compareVersion = (latest, current) => {
 			}) < 0;
 };
 
-export const extractCurlyBraceWords = (text) => {
-	const regex = /\{\{([^}]+)\}\}/g;
+export const findWordIndices = (text) => {
+	const regex = /\[([^\]]+)\]/g;
 	const matches = [];
 	let match;
 
 	while ((match = regex.exec(text)) !== null) {
 		matches.push({
-			word: match[1].trim(),
+			word: match[1],
 			startIndex: match.index,
 			endIndex: regex.lastIndex - 1
 		});
@@ -696,7 +535,7 @@ export const convertOpenAIChats = (_chats) => {
 				user_id: '',
 				title: convo['title'],
 				chat: chat,
-				timestamp: convo['create_time']
+				timestamp: convo['timestamp']
 			});
 		} else {
 			failed++;
@@ -727,78 +566,11 @@ export const removeEmojis = (str: string) => {
 };
 
 export const removeFormattings = (str: string) => {
-	return (
-		str
-			// Block elements (remove completely)
-			.replace(/(```[\s\S]*?```)/g, '') // Code blocks
-			.replace(/^\|.*\|$/gm, '') // Tables
-			// Inline elements (preserve content)
-			.replace(/(?:\*\*|__)(.*?)(?:\*\*|__)/g, '$1') // Bold
-			.replace(/(?:[*_])(.*?)(?:[*_])/g, '$1') // Italic
-			.replace(/~~(.*?)~~/g, '$1') // Strikethrough
-			.replace(/`([^`]+)`/g, '$1') // Inline code
-
-			// Links and images
-			.replace(/!?\[([^\]]*)\](?:\([^)]+\)|\[[^\]]*\])/g, '$1') // Links & images
-			.replace(/^\[[^\]]+\]:\s*.*$/gm, '') // Reference definitions
-
-			// Block formatting
-			.replace(/^#{1,6}\s+/gm, '') // Headers
-			.replace(/^\s*[-*+]\s+/gm, '') // Lists
-			.replace(/^\s*(?:\d+\.)\s+/gm, '') // Numbered lists
-			.replace(/^\s*>[> ]*/gm, '') // Blockquotes
-			.replace(/^\s*:\s+/gm, '') // Definition lists
-
-			// Cleanup
-			.replace(/\[\^[^\]]*\]/g, '') // Footnotes
-			.replace(/[-*_~]/g, '') // Remaining markers
-			.replace(/\n{2,}/g, '\n')
-	); // Multiple newlines
+	return str.replace(/(\*)(.*?)\1/g, '').replace(/(```)(.*?)\1/gs, '');
 };
 
 export const cleanText = (content: string) => {
 	return removeFormattings(removeEmojis(content.trim()));
-};
-
-export const removeDetails = (content, types) => {
-	for (const type of types) {
-		content = content.replace(
-			new RegExp(`<details\\s+type="${type}"[^>]*>.*?<\\/details>`, 'gis'),
-			''
-		);
-	}
-
-	return content;
-};
-
-export const removeAllDetails = (content) => {
-	content = content.replace(/<details[^>]*>.*?<\/details>/gis, '');
-	return content;
-};
-
-export const processDetails = (content) => {
-	content = removeDetails(content, ['reasoning', 'code_interpreter']);
-
-	// This regex matches <details> tags with type="tool_calls" and captures their attributes to convert them to <tool_calls> tags
-	const detailsRegex = /<details\s+type="tool_calls"([^>]*)>([\s\S]*?)<\/details>/gis;
-	const matches = content.match(detailsRegex);
-	if (matches) {
-		for (const match of matches) {
-			const attributesRegex = /(\w+)="([^"]*)"/g;
-			const attributes = {};
-			let attributeMatch;
-			while ((attributeMatch = attributesRegex.exec(match)) !== null) {
-				attributes[attributeMatch[1]] = attributeMatch[2];
-			}
-
-			content = content.replace(
-				match,
-				`<tool_calls name="${attributes.name}" result="${attributes.result}"/>`
-			);
-		}
-	}
-
-	return content;
 };
 
 // This regular expression matches code blocks marked by triple backticks
@@ -870,7 +642,6 @@ export const extractSentencesForAudio = (text: string) => {
 };
 
 export const getMessageContentParts = (content: string, split_on: string = 'punctuation') => {
-	content = removeDetails(content, ['reasoning', 'code_interpreter', 'tool_calls']);
 	const messageContentParts: string[] = [];
 
 	switch (split_on) {
@@ -893,19 +664,6 @@ export const blobToFile = (blob, fileName) => {
 	// Create a new File object from the Blob
 	const file = new File([blob], fileName, { type: blob.type });
 	return file;
-};
-
-export const getPromptVariables = (user_name, user_location) => {
-	return {
-		'{{USER_NAME}}': user_name,
-		'{{USER_LOCATION}}': user_location || 'Unknown',
-		'{{CURRENT_DATETIME}}': getCurrentDateTime(),
-		'{{CURRENT_DATE}}': getFormattedDate(),
-		'{{CURRENT_TIME}}': getFormattedTime(),
-		'{{CURRENT_WEEKDAY}}': getWeekday(),
-		'{{CURRENT_TIMEZONE}}': getUserTimezone(),
-		'{{USER_LANGUAGE}}': localStorage.getItem('locale') || 'en-US'
-	};
 };
 
 /**
@@ -971,9 +729,6 @@ export const promptTemplate = (
 	if (user_location) {
 		// Replace {{USER_LOCATION}} in the template with the current location
 		template = template.replace('{{USER_LOCATION}}', user_location);
-	} else {
-		// Replace {{USER_LOCATION}} in the template with 'Unknown' if no location is provided
-		template = template.replace('{{USER_LOCATION}}', 'LOCATION_UNKNOWN');
 	}
 
 	return template;
@@ -1128,10 +883,7 @@ export const bestMatchingLanguage = (supportedLanguages, preferredLanguages, def
 // Get the date in the format YYYY-MM-DD
 export const getFormattedDate = () => {
 	const date = new Date();
-	const year = date.getFullYear();
-	const month = String(date.getMonth() + 1).padStart(2, '0');
-	const day = String(date.getDate()).padStart(2, '0');
-	return `${year}-${month}-${day}`;
+	return date.toISOString().split('T')[0];
 };
 
 // Get the time in the format HH:MM:SS
@@ -1187,114 +939,4 @@ export const formatFileSize = (size) => {
 export const getLineCount = (text) => {
 	console.log(typeof text);
 	return text ? text.split('\n').length : 0;
-};
-
-// Helper function to recursively resolve OpenAPI schema into JSON schema format
-function resolveSchema(schemaRef, components, resolvedSchemas = new Set()) {
-	if (!schemaRef) return {};
-
-	if (schemaRef['$ref']) {
-		const refPath = schemaRef['$ref'];
-		const schemaName = refPath.split('/').pop();
-
-		if (resolvedSchemas.has(schemaName)) {
-			// Avoid infinite recursion on circular references
-			return {};
-		}
-		resolvedSchemas.add(schemaName);
-		const referencedSchema = components.schemas[schemaName];
-		return resolveSchema(referencedSchema, components, resolvedSchemas);
-	}
-
-	if (schemaRef.type) {
-		const schemaObj = { type: schemaRef.type };
-
-		if (schemaRef.description) {
-			schemaObj.description = schemaRef.description;
-		}
-
-		switch (schemaRef.type) {
-			case 'object':
-				schemaObj.properties = {};
-				schemaObj.required = schemaRef.required || [];
-				for (const [propName, propSchema] of Object.entries(schemaRef.properties || {})) {
-					schemaObj.properties[propName] = resolveSchema(propSchema, components);
-				}
-				break;
-
-			case 'array':
-				schemaObj.items = resolveSchema(schemaRef.items, components);
-				break;
-
-			default:
-				// for primitive types (string, integer, etc.), just use as is
-				break;
-		}
-		return schemaObj;
-	}
-
-	// fallback for schemas without explicit type
-	return {};
-}
-
-// Main conversion function
-export const convertOpenApiToToolPayload = (openApiSpec) => {
-	const toolPayload = [];
-
-	for (const [path, methods] of Object.entries(openApiSpec.paths)) {
-		for (const [method, operation] of Object.entries(methods)) {
-			const tool = {
-				type: 'function',
-				name: operation.operationId,
-				description: operation.description || operation.summary || 'No description available.',
-				parameters: {
-					type: 'object',
-					properties: {},
-					required: []
-				}
-			};
-
-			// Extract path and query parameters
-			if (operation.parameters) {
-				operation.parameters.forEach((param) => {
-					tool.parameters.properties[param.name] = {
-						type: param.schema.type,
-						description: param.schema.description || ''
-					};
-
-					if (param.required) {
-						tool.parameters.required.push(param.name);
-					}
-				});
-			}
-
-			// Extract and recursively resolve requestBody if available
-			if (operation.requestBody) {
-				const content = operation.requestBody.content;
-				if (content && content['application/json']) {
-					const requestSchema = content['application/json'].schema;
-					const resolvedRequestSchema = resolveSchema(requestSchema, openApiSpec.components);
-
-					if (resolvedRequestSchema.properties) {
-						tool.parameters.properties = {
-							...tool.parameters.properties,
-							...resolvedRequestSchema.properties
-						};
-
-						if (resolvedRequestSchema.required) {
-							tool.parameters.required = [
-								...new Set([...tool.parameters.required, ...resolvedRequestSchema.required])
-							];
-						}
-					} else if (resolvedRequestSchema.type === 'array') {
-						tool.parameters = resolvedRequestSchema; // special case when root schema is an array
-					}
-				}
-			}
-
-			toolPayload.push(tool);
-		}
-	}
-
-	return toolPayload;
 };

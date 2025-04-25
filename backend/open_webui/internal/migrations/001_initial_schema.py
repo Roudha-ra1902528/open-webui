@@ -139,6 +139,14 @@ def migrate_sqlite(migrator: Migrator, database: pw.Database, *, fake=False):
 
         class Meta:
             table_name = "user"
+            
+    @migrator.create_model
+    class User_Model(pw.Model):
+        id = pw.CharField(max_length=255, unique=True)
+        model = pw.CharField(max_length=255)
+
+        class Meta:
+            table_name = "user_model"    
 
 
 def migrate_external(migrator: Migrator, database: pw.Database, *, fake=False):
@@ -232,6 +240,14 @@ def migrate_external(migrator: Migrator, database: pw.Database, *, fake=False):
 
         class Meta:
             table_name = "user"
+            
+    @migrator.create_model
+    class User_Model(pw.Model):
+        id = pw.CharField(max_length=255, unique=True)
+        model = pw.CharField(max_length=255)
+
+        class Meta:
+            table_name = "user_model"
 
 
 def rollback(migrator: Migrator, database: pw.Database, *, fake=False):
@@ -252,3 +268,5 @@ def rollback(migrator: Migrator, database: pw.Database, *, fake=False):
     migrator.remove_model("chat")
 
     migrator.remove_model("auth")
+    
+    migrator.remove_model("user_model")

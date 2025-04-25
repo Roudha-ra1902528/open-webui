@@ -1,27 +1,21 @@
 import logging
-from typing import Optional
+from typing import Dict, List, Optional
 
-from open_webui.models.auths import Auths
-from open_webui.models.groups import Groups
-from open_webui.models.chats import Chats
-from open_webui.models.users import (
+from open_webui.apps.webui.models.auths import Auths
+from open_webui.apps.webui.models.chats import Chats
+from open_webui.apps.webui.models.users import (
+    UserModelss,
     UserModel,
     UserRoleUpdateForm,
     Users,
     UserSettings,
     UserUpdateForm,
 )
-
-
-from open_webui.socket.main import get_active_status_by_user_id
 from open_webui.constants import ERROR_MESSAGES
 from open_webui.env import SRC_LOG_LEVELS
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel
-
-from open_webui.utils.auth import get_admin_user, get_password_hash, get_verified_user
-from open_webui.utils.access_control import get_permissions
-
+from open_webui.utils.utils import get_admin_user, get_password_hash, get_verified_user
 
 log = logging.getLogger(__name__)
 log.setLevel(SRC_LOG_LEVELS["MODELS"])
@@ -34,105 +28,24 @@ router = APIRouter()
 
 
 @router.get("/", response_model=list[UserModel])
-async def get_users(
-    skip: Optional[int] = None,
-    limit: Optional[int] = None,
-    user=Depends(get_admin_user),
-):
+async def get_users(skip: int = 0, limit: int = 50, user=Depends(get_admin_user)):
     return Users.get_users(skip, limit)
-
-
-############################
-# User Groups
-############################
-
-
-@router.get("/groups")
-async def get_user_groups(user=Depends(get_verified_user)):
-    return Groups.get_groups_by_member_id(user.id)
 
 
 ############################
 # User Permissions
 ############################
 
-
-@router.get("/permissions")
-async def get_user_permissisions(request: Request, user=Depends(get_verified_user)):
-    user_permissions = get_permissions(
-        user.id, request.app.state.config.USER_PERMISSIONS
-    )
-
-    return user_permissions
+@router.get("/permissions/user")
+async def get_user_permissions(request: Request, user=Depends(get_admin_user)):
+    return request.app.state.config.USER_PERMISSIONS
 
 
-############################
-# User Default Permissions
-############################
-class WorkspacePermissions(BaseModel):
-    models: bool = False
-    knowledge: bool = False
-    prompts: bool = False
-    tools: bool = False
-
-
-class SharingPermissions(BaseModel):
-    public_models: bool = True
-    public_knowledge: bool = True
-    public_prompts: bool = True
-    public_tools: bool = True
-
-
-class ChatPermissions(BaseModel):
-    controls: bool = True
-    file_upload: bool = True
-    delete: bool = True
-    edit: bool = True
-    stt: bool = True
-    tts: bool = True
-    call: bool = True
-    multiple_models: bool = True
-    temporary: bool = True
-    temporary_enforced: bool = False
-
-
-class FeaturesPermissions(BaseModel):
-    direct_tool_servers: bool = False
-    web_search: bool = True
-    image_generation: bool = True
-    code_interpreter: bool = True
-
-
-class UserPermissions(BaseModel):
-    workspace: WorkspacePermissions
-    sharing: SharingPermissions
-    chat: ChatPermissions
-    features: FeaturesPermissions
-
-
-@router.get("/default/permissions", response_model=UserPermissions)
-async def get_default_user_permissions(request: Request, user=Depends(get_admin_user)):
-    return {
-        "workspace": WorkspacePermissions(
-            **request.app.state.config.USER_PERMISSIONS.get("workspace", {})
-        ),
-        "sharing": SharingPermissions(
-            **request.app.state.config.USER_PERMISSIONS.get("sharing", {})
-        ),
-        "chat": ChatPermissions(
-            **request.app.state.config.USER_PERMISSIONS.get("chat", {})
-        ),
-        "features": FeaturesPermissions(
-            **request.app.state.config.USER_PERMISSIONS.get("features", {})
-        ),
-    }
-
-
-@router.post("/default/permissions")
-async def update_default_user_permissions(
-    request: Request, form_data: UserPermissions, user=Depends(get_admin_user)
+@router.post("/permissions/user")
+async def update_user_permissions(
+    request: Request, form_data: dict, user=Depends(get_admin_user)
 ):
-    request.app.state.config.USER_PERMISSIONS = form_data.model_dump()
+    request.app.state.config.USER_PERMISSIONS = form_data
     return request.app.state.config.USER_PERMISSIONS
 
 
@@ -150,7 +63,57 @@ async def update_user_role(form_data: UserRoleUpdateForm, user=Depends(get_admin
         status_code=status.HTTP_403_FORBIDDEN,
         detail=ERROR_MESSAGES.ACTION_PROHIBITED,
     )
+    
+    
+############################
+# GetUserModels
+############################
 
+    
+@router.post("/models")
+async def update_users_models(updated_user_models: Dict[str, List[str]], user=Depends(get_admin_user)):
+    users_models = Users.update_users_models(updated_user_models)
+    
+    if users_models:
+        return users_models
+    else:
+        raise HTTPException(
+            status_code=404, detail=f"Update user models failed"
+        )
+        
+        
+############################
+# GetUserModels
+############################
+
+    
+@router.get("/models")
+async def get_users_models(user=Depends(get_admin_user)):
+    users_models = Users.get_users_models()
+    
+    if users_models:
+        return users_models
+    else:
+        raise HTTPException(
+            status_code=404, detail=f"list of models not found"
+        )
+    
+############################
+# GetUserModels
+############################
+
+class UserModelsResponse(BaseModel):
+    user_models: str
+ 
+    
+@router.get("/{user_id}/models")
+async def get_user_models(user_id: str, user=Depends(get_verified_user)):     
+    user_models = Users.get_user_models(user_id)
+    
+    if user_models:
+        return user_models
+    else:
+        return []
 
 ############################
 # GetUserSettingsBySessionUser
@@ -178,7 +141,7 @@ async def get_user_settings_by_session_user(user=Depends(get_verified_user)):
 async def update_user_settings_by_session_user(
     form_data: UserSettings, user=Depends(get_verified_user)
 ):
-    user = Users.update_user_settings_by_id(user.id, form_data.model_dump())
+    user = Users.update_user_by_id(user.id, {"settings": form_data.model_dump()})
     if user:
         return user.settings
     else:
@@ -242,7 +205,6 @@ async def update_user_info_by_session_user(
 class UserResponse(BaseModel):
     name: str
     profile_image_url: str
-    active: Optional[bool] = None
 
 
 @router.get("/{user_id}", response_model=UserResponse)
@@ -263,13 +225,7 @@ async def get_user_by_id(user_id: str, user=Depends(get_verified_user)):
     user = Users.get_user_by_id(user_id)
 
     if user:
-        return UserResponse(
-            **{
-                "name": user.name,
-                "profile_image_url": user.profile_image_url,
-                "active": get_active_status_by_user_id(user_id),
-            }
-        )
+        return UserResponse(name=user.name, profile_image_url=user.profile_image_url)
     else:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

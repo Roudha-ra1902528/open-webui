@@ -12,15 +12,7 @@
 
 	import { deleteModel, getOllamaVersion, pullModel } from '$lib/apis/ollama';
 
-	import {
-		user,
-		MODEL_DOWNLOAD_POOL,
-		models,
-		mobile,
-		temporaryChatEnabled,
-		settings,
-		config
-	} from '$lib/stores';
+	import { user, MODEL_DOWNLOAD_POOL, models, mobile, temporaryChatEnabled } from '$lib/stores';
 	import { toast } from 'svelte-sonner';
 	import { capitalizeFirstLetter, sanitizeResponseContent, splitStream } from '$lib/utils';
 	import { getModels } from '$lib/apis';
@@ -52,105 +44,39 @@
 	export let className = 'w-[32rem]';
 	export let triggerClassName = 'text-lg';
 
-	let tagsContainerElement;
-
 	let show = false;
-	let tags = [];
 
 	let selectedModel = '';
 	$: selectedModel = items.find((item) => item.value === value) ?? '';
 
 	let searchValue = '';
-
-	let selectedTag = '';
-	let selectedConnectionType = '';
-
 	let ollamaVersion = null;
+
 	let selectedModelIdx = 0;
 
 	const fuse = new Fuse(
-		items.map((item) => {
-			const _item = {
-				...item,
-				modelName: item.model?.name,
-				tags: (item.model?.tags ?? []).map((tag) => tag.name).join(' '),
-				desc: item.model?.info?.meta?.description
-			};
-			return _item;
-		}),
+		items
+			.filter((item) => !item.model?.info?.meta?.hidden)
+			.map((item) => {
+				const _item = {
+					...item,
+					modelName: item.model?.name,
+					tags: item.model?.info?.meta?.tags?.map((tag) => tag.name).join(' '),
+					desc: item.model?.info?.meta?.description
+				};
+				return _item;
+			}),
 		{
 			keys: ['value', 'tags', 'modelName'],
-			threshold: 0.4
+			threshold: 0.3
 		}
 	);
 
-	$: filteredItems = (
-		searchValue
-			? fuse
-					.search(searchValue)
-					.map((e) => {
-						return e.item;
-					})
-					.filter((item) => {
-						if (selectedTag === '') {
-							return true;
-						}
-						return (item.model?.tags ?? []).map((tag) => tag.name).includes(selectedTag);
-					})
-					.filter((item) => {
-						if (selectedConnectionType === '') {
-							return true;
-						} else if (selectedConnectionType === 'ollama') {
-							return item.model?.owned_by === 'ollama';
-						} else if (selectedConnectionType === 'openai') {
-							return item.model?.owned_by === 'openai';
-						} else if (selectedConnectionType === 'direct') {
-							return item.model?.direct;
-						}
-					})
-			: items
-					.filter((item) => {
-						if (selectedTag === '') {
-							return true;
-						}
-						return (item.model?.tags ?? []).map((tag) => tag.name).includes(selectedTag);
-					})
-					.filter((item) => {
-						if (selectedConnectionType === '') {
-							return true;
-						} else if (selectedConnectionType === 'ollama') {
-							return item.model?.owned_by === 'ollama';
-						} else if (selectedConnectionType === 'openai') {
-							return item.model?.owned_by === 'openai';
-						} else if (selectedConnectionType === 'direct') {
-							return item.model?.direct;
-						}
-					})
-	).filter((item) => !(item.model?.info?.meta?.hidden ?? false));
-
-	$: if (selectedTag || selectedConnectionType) {
-		resetView();
-	} else {
-		resetView();
-	}
-
-	const resetView = async () => {
-		await tick();
-
-		const selectedInFiltered = filteredItems.findIndex((item) => item.value === value);
-
-		if (selectedInFiltered >= 0) {
-			// The selected model is visible in the current filter
-			selectedModelIdx = selectedInFiltered;
-		} else {
-			// The selected model is not visible, default to first item in filtered list
-			selectedModelIdx = 0;
-		}
-
-		await tick();
-		const item = document.querySelector(`[data-arrow-selected="true"]`);
-		item?.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' });
-	};
+	$: filteredItems = searchValue
+		? fuse.search(searchValue).map((e) => {
+				return e.item;
+			})
+		: items.filter((item) => !item.model?.info?.meta?.hidden);
 
 	const pullModelHandler = async () => {
 		const sanitizedModelTag = searchValue.trim().replace(/^ollama\s+(run|pull)\s+/, '');
@@ -173,7 +99,7 @@
 
 		const [res, controller] = await pullModel(localStorage.token, sanitizedModelTag, '0').catch(
 			(error) => {
-				toast.error(`${error}`);
+				toast.error(error);
 				return null;
 			}
 		);
@@ -249,7 +175,7 @@
 						error = error.message;
 					}
 
-					toast.error(`${error}`);
+					toast.error(error);
 					// opts.callback({ success: false, error, modelName: opts.modelName });
 					break;
 				}
@@ -262,12 +188,7 @@
 					})
 				);
 
-				models.set(
-					await getModels(
-						localStorage.token,
-						$config?.features?.enable_direct_connections && ($settings?.directConnections ?? null)
-					)
-				);
+				models.set(await getModels(localStorage.token));
 			} else {
 				toast.error($i18n.t('Download canceled'));
 			}
@@ -282,16 +203,6 @@
 
 	onMount(async () => {
 		ollamaVersion = await getOllamaVersion(localStorage.token).catch((error) => false);
-
-		if (items) {
-			tags = items
-				.filter((item) => !(item.model?.info?.meta?.hidden ?? false))
-				.flatMap((item) => item.model?.tags ?? [])
-				.map((tag) => tag.name);
-
-			// Remove duplicates and sort
-			tags = Array.from(new Set(tags)).sort((a, b) => a.localeCompare(b));
-		}
 	});
 
 	const cancelModelPullHandler = async (model: string) => {
@@ -315,9 +226,8 @@
 	bind:open={show}
 	onOpenChange={async () => {
 		searchValue = '';
+		selectedModelIdx = 0;
 		window.setTimeout(() => document.getElementById('model-search-input')?.focus(), 0);
-
-		resetView();
 	}}
 	closeFocus={false}
 >
@@ -327,7 +237,7 @@
 		id="model-selector-{id}-button"
 	>
 		<div
-			class="flex w-full text-left px-0.5 outline-hidden bg-transparent truncate {triggerClassName} justify-between font-medium placeholder-gray-400 focus:outline-hidden"
+			class="flex w-full text-left px-0.5 outline-none bg-transparent truncate {triggerClassName} justify-between font-medium placeholder-gray-400 focus:outline-none"
 		>
 			{#if selectedModel}
 				{selectedModel.label}
@@ -341,20 +251,20 @@
 	<DropdownMenu.Content
 		class=" z-40 {$mobile
 			? `w-full`
-			: `${className}`} max-w-[calc(100vw-1rem)] justify-start rounded-xl  bg-white dark:bg-gray-850 dark:text-white shadow-lg  outline-hidden"
+			: `${className}`} max-w-[calc(100vw-1rem)] justify-start rounded-xl  bg-white dark:bg-gray-850 dark:text-white shadow-lg  outline-none"
 		transition={flyAndScale}
 		side={$mobile ? 'bottom' : 'bottom-start'}
 		sideOffset={3}
 	>
 		<slot>
 			{#if searchEnabled}
-				<div class="flex items-center gap-2.5 px-5 mt-3.5 mb-1.5">
+				<div class="flex items-center gap-2.5 px-5 mt-3.5 mb-3">
 					<Search className="size-4" strokeWidth="2.5" />
 
 					<input
 						id="model-search-input"
 						bind:value={searchValue}
-						class="w-full text-sm bg-transparent outline-hidden"
+						class="w-full text-sm bg-transparent outline-none"
 						placeholder={searchPlaceholder}
 						autocomplete="off"
 						on:keydown={(e) => {
@@ -376,103 +286,19 @@
 						}}
 					/>
 				</div>
+
+				<hr class="border-gray-50 dark:border-gray-800" />
 			{/if}
 
-			<div class="px-3 max-h-64 overflow-y-auto scrollbar-hidden group relative">
-				{#if tags && items.filter((item) => !(item.model?.info?.meta?.hidden ?? false)).length > 0}
-					<div
-						class=" flex w-full sticky top-0 z-10 bg-white dark:bg-gray-850 overflow-x-auto scrollbar-none"
-						on:wheel={(e) => {
-							if (e.deltaY !== 0) {
-								e.preventDefault();
-								e.currentTarget.scrollLeft += e.deltaY;
-							}
-						}}
-					>
-						<div
-							class="flex gap-1 w-fit text-center text-sm font-medium rounded-full bg-transparent px-1.5 pb-0.5"
-							bind:this={tagsContainerElement}
-						>
-							{#if (items.find((item) => item.model?.owned_by === 'ollama') && items.find((item) => item.model?.owned_by === 'openai')) || items.find((item) => item.model?.direct) || tags.length > 0}
-								<button
-									class="min-w-fit outline-none p-1.5 {selectedTag === '' &&
-									selectedConnectionType === ''
-										? ''
-										: 'text-gray-300 dark:text-gray-600 hover:text-gray-700 dark:hover:text-white'} transition capitalize"
-									on:click={() => {
-										selectedConnectionType = '';
-										selectedTag = '';
-									}}
-								>
-									{$i18n.t('All')}
-								</button>
-							{/if}
-
-							{#if items.find((item) => item.model?.owned_by === 'ollama') && items.find((item) => item.model?.owned_by === 'openai')}
-								<button
-									class="min-w-fit outline-none p-1.5 {selectedConnectionType === 'ollama'
-										? ''
-										: 'text-gray-300 dark:text-gray-600 hover:text-gray-700 dark:hover:text-white'} transition capitalize"
-									on:click={() => {
-										selectedTag = '';
-										selectedConnectionType = 'ollama';
-									}}
-								>
-									{$i18n.t('Local')}
-								</button>
-								<button
-									class="min-w-fit outline-none p-1.5 {selectedConnectionType === 'openai'
-										? ''
-										: 'text-gray-300 dark:text-gray-600 hover:text-gray-700 dark:hover:text-white'} transition capitalize"
-									on:click={() => {
-										selectedTag = '';
-										selectedConnectionType = 'openai';
-									}}
-								>
-									{$i18n.t('External')}
-								</button>
-							{/if}
-
-							{#if items.find((item) => item.model?.direct)}
-								<button
-									class="min-w-fit outline-none p-1.5 {selectedConnectionType === 'direct'
-										? ''
-										: 'text-gray-300 dark:text-gray-600 hover:text-gray-700 dark:hover:text-white'} transition capitalize"
-									on:click={() => {
-										selectedTag = '';
-										selectedConnectionType = 'direct';
-									}}
-								>
-									{$i18n.t('Direct')}
-								</button>
-							{/if}
-
-							{#each tags as tag}
-								<button
-									class="min-w-fit outline-none p-1.5 {selectedTag === tag
-										? ''
-										: 'text-gray-300 dark:text-gray-600 hover:text-gray-700 dark:hover:text-white'} transition capitalize"
-									on:click={() => {
-										selectedConnectionType = '';
-										selectedTag = tag;
-									}}
-								>
-									{tag}
-								</button>
-							{/each}
-						</div>
-					</div>
-				{/if}
-
+			<div class="px-3 my-2 max-h-64 overflow-y-auto scrollbar-hidden group">
 				{#each filteredItems as item, index}
 					<button
 						aria-label="model-item"
-						class="flex w-full text-left font-medium line-clamp-1 select-none items-center rounded-button py-2 pl-3 pr-1.5 text-sm text-gray-700 dark:text-gray-100 outline-hidden transition-all duration-75 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg cursor-pointer data-highlighted:bg-muted {index ===
+						class="flex w-full text-left font-medium line-clamp-1 select-none items-center rounded-button py-2 pl-3 pr-1.5 text-sm text-gray-700 dark:text-gray-100 outline-none transition-all duration-75 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg cursor-pointer data-[highlighted]:bg-muted {index ===
 						selectedModelIdx
 							? 'bg-gray-100 dark:bg-gray-800 group-hover:bg-transparent'
 							: ''}"
 						data-arrow-selected={index === selectedModelIdx}
-						data-value={item.value}
 						on:click={() => {
 							value = item.value;
 							selectedModelIdx = index;
@@ -481,11 +307,11 @@
 						}}
 					>
 						<div class="flex flex-col">
-							{#if $mobile && (item?.model?.tags ?? []).length > 0}
+							{#if $mobile && (item?.model?.info?.meta?.tags ?? []).length > 0}
 								<div class="flex gap-0.5 self-start h-full mb-1.5 -translate-x-1">
-									{#each item.model?.tags.sort((a, b) => a.name.localeCompare(b.name)) as tag}
+									{#each item.model?.info?.meta.tags as tag}
 										<div
-											class=" text-xs font-bold px-1 rounded-sm uppercase line-clamp-1 bg-gray-500/20 text-gray-700 dark:text-gray-200"
+											class=" text-xs font-bold px-1 rounded uppercase line-clamp-1 bg-gray-500/20 text-gray-700 dark:text-gray-200"
 										>
 											{tag.name}
 										</div>
@@ -496,68 +322,41 @@
 								<div class="flex items-center min-w-fit">
 									<div class="line-clamp-1">
 										<div class="flex items-center min-w-fit">
-											<Tooltip
-												content={$user?.role === 'admin' ? (item?.value ?? '') : ''}
-												placement="top-start"
-											>
-												<img
-													src={item.model?.info?.meta?.profile_image_url ?? '/static/favicon.png'}
-													alt="Model"
-													class="rounded-full size-5 flex items-center mr-2"
-												/>
-
-												<div class="flex items-center line-clamp-1">
-													<div class="line-clamp-1">
-														{item.label}
-													</div>
-
-													{#if item.model.owned_by === 'ollama' && (item.model.ollama?.details?.parameter_size ?? '') !== ''}
-														<div class="flex ml-1 items-center translate-y-[0.5px]">
-															<Tooltip
-																content={`${
-																	item.model.ollama?.details?.quantization_level
-																		? item.model.ollama?.details?.quantization_level + ' '
-																		: ''
-																}${
-																	item.model.ollama?.size
-																		? `(${(item.model.ollama?.size / 1024 ** 3).toFixed(1)}GB)`
-																		: ''
-																}`}
-																className="self-end"
-															>
-																<span
-																	class=" text-xs font-medium text-gray-600 dark:text-gray-400 line-clamp-1"
-																	>{item.model.ollama?.details?.parameter_size ?? ''}</span
-																>
-															</Tooltip>
-														</div>
-													{/if}
-												</div>
-											</Tooltip>
+											<img
+												src={item.model?.info?.meta?.profile_image_url ?? '/static/favicon.png'}
+												alt="Model"
+												class="rounded-full size-5 flex items-center mr-2"
+											/>
+											{item.label}
 										</div>
 									</div>
+									{#if item.model.owned_by === 'ollama' && (item.model.ollama?.details?.parameter_size ?? '') !== ''}
+										<div class="flex ml-1 items-center translate-y-[0.5px]">
+											<Tooltip
+												content={`${
+													item.model.ollama?.details?.quantization_level
+														? item.model.ollama?.details?.quantization_level + ' '
+														: ''
+												}${
+													item.model.ollama?.size
+														? `(${(item.model.ollama?.size / 1024 ** 3).toFixed(1)}GB)`
+														: ''
+												}`}
+												className="self-end"
+												
+											>
+												<span
+													class=" text-xs font-medium text-gray-600 dark:text-gray-400 line-clamp-1"
+													>{item.model.ollama?.details?.parameter_size ?? ''}</span
+												>
+											</Tooltip>
+										</div>
+									{/if}
 								</div>
 
 								<!-- {JSON.stringify(item.info)} -->
 
-								{#if item.model?.direct}
-									<Tooltip content={`${'Direct'}`}>
-										<div class="translate-y-[1px]">
-											<svg
-												xmlns="http://www.w3.org/2000/svg"
-												viewBox="0 0 16 16"
-												fill="currentColor"
-												class="size-3"
-											>
-												<path
-													fill-rule="evenodd"
-													d="M2 2.75A.75.75 0 0 1 2.75 2C8.963 2 14 7.037 14 13.25a.75.75 0 0 1-1.5 0c0-5.385-4.365-9.75-9.75-9.75A.75.75 0 0 1 2 2.75Zm0 4.5a.75.75 0 0 1 .75-.75 6.75 6.75 0 0 1 6.75 6.75.75.75 0 0 1-1.5 0C8 10.35 5.65 8 2.75 8A.75.75 0 0 1 2 7.25ZM3.5 11a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Z"
-													clip-rule="evenodd"
-												/>
-											</svg>
-										</div>
-									</Tooltip>
-								{:else if item.model.owned_by === 'openai'}
+								{#if item.model.owned_by === 'openai'}
 									<Tooltip content={`${'External'}`}>
 										<div class="translate-y-[1px]">
 											<svg
@@ -609,14 +408,12 @@
 									</Tooltip>
 								{/if}
 
-								{#if !$mobile && (item?.model?.tags ?? []).length > 0}
-									<div
-										class="flex gap-0.5 self-center items-center h-full translate-y-[0.5px] overflow-x-auto scrollbar-none"
-									>
-										{#each item.model?.tags.sort((a, b) => a.name.localeCompare(b.name)) as tag}
-											<Tooltip content={tag.name} className="flex-shrink-0">
+								{#if !$mobile && (item?.model?.info?.meta?.tags ?? []).length > 0}
+									<div class="flex gap-0.5 self-center items-center h-full translate-y-[0.5px]">
+										{#each item.model?.info?.meta.tags as tag}
+											<Tooltip content={tag.name}>
 												<div
-													class=" text-xs font-bold px-1 rounded-sm uppercase bg-gray-500/20 text-gray-700 dark:text-gray-200"
+													class=" text-xs font-bold px-1 rounded uppercase line-clamp-1 bg-gray-500/20 text-gray-700 dark:text-gray-200"
 												>
 													{tag.name}
 												</div>
@@ -634,36 +431,27 @@
 						{/if}
 					</button>
 				{:else}
-					<div class="">
+					<div>
 						<div class="block px-3 py-2 text-sm text-gray-700 dark:text-gray-100">
 							{$i18n.t('No results found')}
 						</div>
 					</div>
 				{/each}
 
-				{#if !(searchValue.trim() in $MODEL_DOWNLOAD_POOL) && searchValue && ollamaVersion && $user?.role === 'admin'}
-					<Tooltip
-						content={$i18n.t(`Pull "{{searchValue}}" from Ollama.com`, {
-							searchValue: searchValue
-						})}
-						placement="top-start"
+				{#if !(searchValue.trim() in $MODEL_DOWNLOAD_POOL) && searchValue && ollamaVersion && $user.role === 'admin'}
+					<button
+						class="flex w-full font-medium line-clamp-1 select-none items-center rounded-button py-2 pl-3 pr-1.5 text-sm text-gray-700 dark:text-gray-100 outline-none transition-all duration-75 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg cursor-pointer data-[highlighted]:bg-muted"
+						on:click={() => {
+							pullModelHandler();
+						}}
 					>
-						<button
-							class="flex w-full font-medium line-clamp-1 select-none items-center rounded-button py-2 pl-3 pr-1.5 text-sm text-gray-700 dark:text-gray-100 outline-hidden transition-all duration-75 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg cursor-pointer data-highlighted:bg-muted"
-							on:click={() => {
-								pullModelHandler();
-							}}
-						>
-							<div class=" truncate">
-								{$i18n.t(`Pull "{{searchValue}}" from Ollama.com`, { searchValue: searchValue })}
-							</div>
-						</button>
-					</Tooltip>
+						{$i18n.t(`Pull "{{searchValue}}" from Ollama.com`, { searchValue: searchValue })}
+					</button>
 				{/if}
 
 				{#each Object.keys($MODEL_DOWNLOAD_POOL) as model}
 					<div
-						class="flex w-full justify-between font-medium select-none rounded-button py-2 pl-3 pr-1.5 text-sm text-gray-700 dark:text-gray-100 outline-hidden transition-all duration-75 rounded-lg cursor-pointer data-highlighted:bg-muted"
+						class="flex w-full justify-between font-medium select-none rounded-button py-2 pl-3 pr-1.5 text-sm text-gray-700 dark:text-gray-100 outline-none transition-all duration-75 rounded-lg cursor-pointer data-[highlighted]:bg-muted"
 					>
 						<div class="flex">
 							<div class="-ml-2 mr-2.5 translate-y-0.5">
@@ -698,7 +486,7 @@
 										Downloading "{model}"
 									</div>
 
-									<div class="shrink-0">
+									<div class="flex-shrink-0">
 										{'pullProgress' in $MODEL_DOWNLOAD_POOL[model]
 											? `(${$MODEL_DOWNLOAD_POOL[model].pullProgress}%)`
 											: ''}
@@ -746,9 +534,11 @@
 			</div>
 
 			{#if showTemporaryChatControl}
-				<div class="flex items-center mx-2 mb-2">
+				<hr class="border-gray-50 dark:border-gray-800" />
+
+				<div class="flex items-center mx-2 my-2">
 					<button
-						class="flex justify-between w-full font-medium line-clamp-1 select-none items-center rounded-button py-2 px-3 text-sm text-gray-700 dark:text-gray-100 outline-hidden transition-all duration-75 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg cursor-pointer data-highlighted:bg-muted"
+						class="flex justify-between w-full font-medium line-clamp-1 select-none items-center rounded-button py-2 px-3 text-sm text-gray-700 dark:text-gray-100 outline-none transition-all duration-75 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg cursor-pointer data-[highlighted]:bg-muted"
 						on:click={async () => {
 							temporaryChatEnabled.set(!$temporaryChatEnabled);
 							await goto('/');
@@ -778,8 +568,6 @@
 						</div>
 					</button>
 				</div>
-			{:else if filteredItems.length === 0}
-				<div class="mb-3"></div>
 			{/if}
 
 			<div class="hidden w-[42rem]" />
@@ -787,3 +575,14 @@
 		</slot>
 	</DropdownMenu.Content>
 </DropdownMenu.Root>
+
+<style>
+	.scrollbar-hidden:active::-webkit-scrollbar-thumb,
+	.scrollbar-hidden:focus::-webkit-scrollbar-thumb,
+	.scrollbar-hidden:hover::-webkit-scrollbar-thumb {
+		visibility: visible;
+	}
+	.scrollbar-hidden::-webkit-scrollbar-thumb {
+		visibility: hidden;
+	}
+</style>

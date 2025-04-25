@@ -1,10 +1,94 @@
 import { WEBUI_API_BASE_URL } from '$lib/constants';
 import { getUserPosition } from '$lib/utils';
 
-export const getUserGroups = async (token: string) => {
+export const setUsersModels = async (token: string, updatedUserModels: Record<string, string[]>) => {
+    let error = null;
+
+    const res = await fetch(`${WEBUI_API_BASE_URL}/users/models`, {
+        method: 'POST', // Use POST instead of GET
+        headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(updatedUserModels), // Add the payload as the request body
+    })
+        .then(async (res) => {
+            if (!res.ok) throw await res.json(); // Throw error response if the status is not OK
+            return res.json(); // Parse and return JSON response
+        })
+        .catch((err) => {
+            console.error(err); // Log the error
+            error = err.detail; // Extract the error detail (if present)
+            return null; // Return null on failure
+        });
+
+    if (error) {
+        throw error; // Throw the extracted error
+    }
+
+
+    return res; // Return the final response
+};
+
+export const getUsersModels = async (token: string) => {
+	let error = null;
+	
+	const res = await fetch(`${WEBUI_API_BASE_URL}/users/models`, {
+		method: 'GET',
+		headers: {
+			'Content-Type': 'application/json',
+			Authorization: `Bearer ${token}`
+		}
+	})
+		.then(async (res) => {
+			if (!res.ok) throw await res.json();
+			return res.json();
+		})
+		.catch((err) => {
+			console.log(err);
+			error = err.detail;
+			return null;
+		});
+
+	if (error) {
+		throw error;
+	}
+
+	return res;
+}
+
+export const getUserModels = async (token: string, userId: string) => {
+	let error = null;
+	
+	const res = await fetch(`${WEBUI_API_BASE_URL}/users/${userId}/models`, {
+		method: 'GET',
+		headers: {
+			'Content-Type': 'application/json',
+			Authorization: `Bearer ${token}`
+		}
+	})
+		.then(async (res) => {
+			if (!res.ok) throw await res.json();
+			return res.json();
+		})
+		.catch((err) => {
+			console.log(err);
+			error = err.detail;
+			return null;
+		});
+
+	if (error) {
+		throw error;
+	}
+
+	return res;
+}
+
+
+export const getUserPermissions = async (token: string) => {
 	let error = null;
 
-	const res = await fetch(`${WEBUI_API_BASE_URL}/users/groups`, {
+	const res = await fetch(`${WEBUI_API_BASE_URL}/users/permissions/user`, {
 		method: 'GET',
 		headers: {
 			'Content-Type': 'application/json',
@@ -28,37 +112,10 @@ export const getUserGroups = async (token: string) => {
 	return res;
 };
 
-export const getUserDefaultPermissions = async (token: string) => {
+export const updateUserPermissions = async (token: string, permissions: object) => {
 	let error = null;
 
-	const res = await fetch(`${WEBUI_API_BASE_URL}/users/default/permissions`, {
-		method: 'GET',
-		headers: {
-			'Content-Type': 'application/json',
-			Authorization: `Bearer ${token}`
-		}
-	})
-		.then(async (res) => {
-			if (!res.ok) throw await res.json();
-			return res.json();
-		})
-		.catch((err) => {
-			console.log(err);
-			error = err.detail;
-			return null;
-		});
-
-	if (error) {
-		throw error;
-	}
-
-	return res;
-};
-
-export const updateUserDefaultPermissions = async (token: string, permissions: object) => {
-	let error = null;
-
-	const res = await fetch(`${WEBUI_API_BASE_URL}/users/default/permissions`, {
+	const res = await fetch(`${WEBUI_API_BASE_URL}/users/permissions/user`, {
 		method: 'POST',
 		headers: {
 			'Content-Type': 'application/json',
@@ -284,16 +341,14 @@ export const updateUserInfo = async (token: string, info: object) => {
 
 export const getAndUpdateUserLocation = async (token: string) => {
 	const location = await getUserPosition().catch((err) => {
-		console.log(err);
-		return null;
+		throw err;
 	});
 
 	if (location) {
 		await updateUserInfo(token, { location: location });
 		return location;
 	} else {
-		console.log('Failed to get user location');
-		return null;
+		throw new Error('Failed to get user location');
 	}
 };
 

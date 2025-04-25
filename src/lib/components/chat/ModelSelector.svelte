@@ -1,19 +1,48 @@
 <script lang="ts">
 	import { models, showSettings, settings, user, mobile, config } from '$lib/stores';
+	import { getModelFilterConfig } from '$lib/apis';
 	import { onMount, tick, getContext } from 'svelte';
 	import { toast } from 'svelte-sonner';
 	import Selector from './ModelSelector/Selector.svelte';
 	import Tooltip from '../common/Tooltip.svelte';
 
+	import { setDefaultModels } from '$lib/apis/configs';
 	import { updateUserSettings } from '$lib/apis/users';
+	import { getUserModels } from '../../apis/users';
+
 	const i18n = getContext('i18n');
 
 	export let selectedModels = [''];
 	export let disabled = false;
 
 	export let showSetDefault = true;
+	let userModels = [""]
+	let filteredModels = null
+	let _filteredModels = null
+	let whitelistEnabled = false;
+	let whitelistModels = [''];
+	let uniqueModelIds = ['']
+
+	onMount(async () => { 
+		const resp = await getModelFilterConfig(localStorage.token);
+		if (resp) {
+			whitelistEnabled = resp.enabled;
+			whitelistModels = resp.models.length > 0 ? resp.models : [''];
+		}
+
+		const res = await getUserModels(localStorage.token, $user.id)
+		if(res) userModels = res.length > 0 ? res : [''];
+
+		if(whitelistEnabled)
+	    	uniqueModelIds = [...new Set([...whitelistModels, ...userModels])];
+		else
+			uniqueModelIds = [...userModels]
+
+		filteredModels = $models.filter((model) => uniqueModelIds.includes(model.id))
+	})
 
 	const saveDefaultModel = async () => {
+
 		const hasEmptyModel = selectedModels.filter((it) => it === '');
 		if (hasEmptyModel.length) {
 			toast.error($i18n.t('Choose a model before saving...'));
@@ -25,12 +54,17 @@
 		toast.success($i18n.t('Default model updated'));
 	};
 
-	$: if (selectedModels.length > 0 && $models.length > 0) {
+	$: if (selectedModels.length > 0 && filteredModels?.length > 0) {
 		selectedModels = selectedModels.map((model) =>
-			$models.map((m) => m.id).includes(model) ? model : ''
+		filteredModels.map((m) => m.id).includes(model) ? model : ''
 		);
 	}
 </script>
+
+<!-- {JSON.stringify(userModels ?? "nothing")} 
+ {JSON.stringify($models ?? "nothing")} 
+{JSON.stringify(whitelistModels ?? "nothing")} -->
+  <!-- {JSON.stringify(filteredModels)} -->
 
 <div class="flex flex-col w-full items-start">
 	{#each selectedModels as selectedModel, selectedModelIdx}
@@ -40,74 +74,71 @@
 					<Selector
 						id={`${selectedModelIdx}`}
 						placeholder={$i18n.t('Select a model')}
-						items={$models.map((model) => ({
+						items={filteredModels?.map((model) => ({
 							value: model.id,
 							label: model.name,
 							model: model
 						}))}
-						showTemporaryChatControl={$user?.role === 'user'
-							? ($user?.permissions?.chat?.temporary ?? true) &&
-								!($user?.permissions?.chat?.temporary_enforced ?? false)
+						showTemporaryChatControl={$user.role === 'user'
+							? ($config?.permissions?.chat?.temporary ?? true)
 							: true}
 						bind:value={selectedModel}
 					/>
 				</div>
 			</div>
 
-			{#if $user?.role === 'admin' || ($user?.permissions?.chat?.multiple_models ?? true)}
-				{#if selectedModelIdx === 0}
-					<div
-						class="  self-center mx-1 disabled:text-gray-600 disabled:hover:text-gray-600 -translate-y-[0.5px]"
-					>
-						<Tooltip content={$i18n.t('Add Model')}>
-							<button
-								class=" "
-								{disabled}
-								on:click={() => {
-									selectedModels = [...selectedModels, ''];
-								}}
-								aria-label="Add Model"
+			{#if selectedModelIdx === 0}
+				<div
+					class="  self-center mx-1 disabled:text-gray-600 disabled:hover:text-gray-600 -translate-y-[0.5px]"
+				>
+					<Tooltip content={$i18n.t('Add Model')}>
+						<button
+							class=" "
+							{disabled}
+							on:click={() => {
+								selectedModels = [...selectedModels, ''];
+							}}
+							aria-label="Add Model"
+						>
+							<svg
+								xmlns="http://www.w3.org/2000/svg"
+								fill="none"
+								viewBox="0 0 24 24"
+								stroke-width="2"
+								stroke="currentColor"
+								class="size-3.5"
 							>
-								<svg
-									xmlns="http://www.w3.org/2000/svg"
-									fill="none"
-									viewBox="0 0 24 24"
-									stroke-width="2"
-									stroke="currentColor"
-									class="size-3.5"
-								>
-									<path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m6-6H6" />
-								</svg>
-							</button>
-						</Tooltip>
-					</div>
-				{:else}
-					<div
-						class="  self-center mx-1 disabled:text-gray-600 disabled:hover:text-gray-600 -translate-y-[0.5px]"
-					>
-						<Tooltip content={$i18n.t('Remove Model')}>
-							<button
-								{disabled}
-								on:click={() => {
-									selectedModels.splice(selectedModelIdx, 1);
-									selectedModels = selectedModels;
-								}}
-								aria-label="Remove Model"
+								<path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m6-6H6" />
+							</svg>
+						</button>
+					</Tooltip>
+				</div>
+			{:else}
+				<div
+					class="  self-center mx-1 disabled:text-gray-600 disabled:hover:text-gray-600 -translate-y-[0.5px]"
+				>
+					<Tooltip content={$i18n.t('Remove Model')}>
+						<button
+							{disabled}
+							on:click={() => {
+								selectedModels.splice(selectedModelIdx, 1);
+								selectedModels = selectedModels;
+							}}
+							aria-label="Remove Model"
+						>
+							<svg
+								xmlns="http://www.w3.org/2000/svg"
+								fill="none"
+								viewBox="0 0 24 24"
+								stroke-width="2"
+								stroke="currentColor"
+								class="size-3"
 							>
-								<svg
-									xmlns="http://www.w3.org/2000/svg"
-									fill="none"
-									viewBox="0 0 24 24"
-									stroke-width="2"
-									stroke="currentColor"
-									class="size-3"
-								>
-									<path stroke-linecap="round" stroke-linejoin="round" d="M19.5 12h-15" />
-								</svg>
-							</button>
-						</Tooltip>
-					</div>
-				{/if}
+								<path stroke-linecap="round" stroke-linejoin="round" d="M19.5 12h-15" />
+							</svg>
+						</button>
+					</Tooltip>
+				</div>
 			{/if}
 		</div>
 	{/each}
