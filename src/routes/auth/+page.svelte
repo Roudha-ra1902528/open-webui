@@ -1,5 +1,6 @@
 <script>
 	import { toast } from 'svelte-sonner';
+	import { slide } from 'svelte/transition';
 
 	import { onMount, getContext, tick } from 'svelte';
 	import { goto } from '$app/navigation';
@@ -153,6 +154,8 @@
 			onboarding = $config?.onboarding ?? false;
 		}
 	});
+
+	let showAltLogin = false;
 </script>
 
 <svelte:head>
@@ -209,144 +212,213 @@
 					</div>
 				{:else}
 					<div class="  my-auto pb-10 w-full dark:text-gray-100">
-						<form
-							class=" flex flex-col justify-center"
-							on:submit={(e) => {
-								e.preventDefault();
-								submitHandler();
-							}}
-						>
-							<div class="mb-1">
-								<div class=" text-2xl font-medium">
-									{#if $config?.onboarding ?? false}
-										{$i18n.t(`Get started with {{WEBUI_NAME}}`, { WEBUI_NAME: $WEBUI_NAME })}
-									{:else if mode === 'ldap'}
-										{$i18n.t(`Sign in to {{WEBUI_NAME}} with LDAP`, { WEBUI_NAME: $WEBUI_NAME })}
-									{:else if mode === 'signin'}
-										{$i18n.t(`Sign in to {{WEBUI_NAME}}`, { WEBUI_NAME: $WEBUI_NAME })}
-									{:else}
-										{$i18n.t(`Sign up to {{WEBUI_NAME}}`, { WEBUI_NAME: $WEBUI_NAME })}
-									{/if}
-								</div>
-
-								{#if $config?.onboarding ?? false}
-									<div class=" mt-1 text-xs font-medium text-gray-500">
-										ⓘ {$WEBUI_NAME}
-										{$i18n.t(
-											'does not make any external connections, and your data stays securely on your locally hosted server.'
-										)}
-									</div>
-								{/if}
-							</div>
-
-							{#if $config?.features.enable_login_form || $config?.features.enable_ldap}
-								<div class="flex flex-col mt-4">
-									{#if mode === 'signup'}
-										<div class="mb-2">
-											<div class=" text-sm font-medium text-left mb-1">{$i18n.t('Name')}</div>
-											<input
-												bind:value={name}
-												type="text"
-												class="my-0.5 w-full text-sm outline-hidden bg-transparent"
-												autocomplete="name"
-												placeholder={$i18n.t('Enter Your Full Name')}
-												required
-											/>
-										</div>
-									{/if}
-
-									{#if mode === 'ldap'}
-										<div class="mb-2">
-											<div class=" text-sm font-medium text-left mb-1">{$i18n.t('Username')}</div>
-											<input
-												bind:value={ldapUsername}
-												type="text"
-												class="my-0.5 w-full text-sm outline-hidden bg-transparent"
-												autocomplete="username"
-												name="username"
-												placeholder={$i18n.t('Enter Your Username')}
-												required
-											/>
-										</div>
-									{:else}
-										<div class="mb-2">
-											<div class=" text-sm font-medium text-left mb-1">{$i18n.t('Email')}</div>
-											<input
-												bind:value={email}
-												type="email"
-												class="my-0.5 w-full text-sm outline-hidden bg-transparent"
-												autocomplete="email"
-												name="email"
-												placeholder={$i18n.t('Enter Your Email')}
-												required
-											/>
-										</div>
-									{/if}
-
-									<div>
-										<div class=" text-sm font-medium text-left mb-1">{$i18n.t('Password')}</div>
-
-										<input
-											bind:value={password}
-											type="password"
-											class="my-0.5 w-full text-sm outline-hidden bg-transparent"
-											placeholder={$i18n.t('Enter Your Password')}
-											autocomplete="current-password"
-											name="current-password"
-											required
+						{#if $config?.oauth?.providers?.oidc}
+							<div class="flex flex-col items-center w-full mb-4">
+								<button
+									class="flex justify-center items-center bg-gray-700/5 hover:bg-gray-700/10
+									   dark:bg-gray-100/5 dark:hover:bg-gray-100/10 dark:text-gray-300 dark:hover:text-white
+									   transition w-full rounded-full font-bold text-lg  py-6 "
+									on:click={() => {
+										window.location.href = `${WEBUI_BASE_URL}/oauth/oidc/login`;
+									}}
+								>
+									<svg
+										xmlns="http://www.w3.org/2000/svg"
+										fill="none"
+										viewBox="0 0 24 24"
+										stroke-width="1.5"
+										stroke="currentColor"
+										class="size-6 mr-3"
+									>
+										<path
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											d="M15.75 5.25a3 3 0 0 1 3 3m3 0a6 6 0 0 1-7.029
+										5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1
+										.43-1.563A6 6 0 1 1 21.75 8.25Z"
 										/>
-									</div>
-								</div>
+									</svg>
+									<span
+										>{$i18n.t('Continue Login', {
+											provider: $config?.oauth?.providers?.oidc ?? 'OIDC'
+										})}</span
+									>
+								</button>
+
+
+						<div class="inline-flex items-center justify-center w-full">
+							<hr class="w-32 h-px my-8 border-0 dark:bg-gray-100/10 bg-gray-700/10" />
+							{#if $config?.features.enable_login_form || $config?.features.enable_ldap}
+								<span class="px-3 text-sm font-medium text-gray-900 dark:text-white bg-transparent"
+									>{$i18n.t('or')}</span
+								>
 							{/if}
-							<div class="mt-5">
-								{#if $config?.features.enable_login_form || $config?.features.enable_ldap}
-									{#if mode === 'ldap'}
-										<button
-											class="bg-gray-700/5 hover:bg-gray-700/10 dark:bg-gray-100/5 dark:hover:bg-gray-100/10 dark:text-gray-300 dark:hover:text-white transition w-full rounded-full font-medium text-sm py-2.5"
-											type="submit"
-										>
-											{$i18n.t('Authenticate')}
-										</button>
+
+							<hr class="w-32 h-px my-4 border-0 dark:bg-gray-100/10 bg-gray-700/10" />
+						</div>
+
+								<!-- Small toggle text -->
+								<button
+									type="button"
+									class="mt-0 text-xs underline text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white"
+									on:click={() => (showAltLogin = !showAltLogin)}
+								>
+									{#if !showAltLogin}
+										{$i18n.t('Login using another method')}
 									{:else}
-										<button
-											class="bg-gray-700/5 hover:bg-gray-700/10 dark:bg-gray-100/5 dark:hover:bg-gray-100/10 dark:text-gray-300 dark:hover:text-white transition w-full rounded-full font-medium text-sm py-2.5"
-											type="submit"
-										>
-											{mode === 'signin'
-												? $i18n.t('Sign in')
-												: ($config?.onboarding ?? false)
-													? $i18n.t('Create Admin Account')
-													: $i18n.t('Create Account')}
-										</button>
+										{$i18n.t('Hide other login options')}
+									{/if}
+								</button>
+							</div>
+						{/if}
 
-										{#if $config?.features.enable_signup && !($config?.onboarding ?? false)}
-											<div class=" mt-4 text-sm text-center">
-												{mode === 'signin'
-													? $i18n.t("Don't have an account?")
-													: $i18n.t('Already have an account?')}
 
-												<button
-													class=" font-medium underline"
-													type="button"
-													on:click={() => {
-														if (mode === 'signin') {
-															mode = 'signup';
-														} else {
-															mode = 'signin';
-														}
-													}}
-												>
-													{mode === 'signin' ? $i18n.t('Sign up') : $i18n.t('Sign in')}
-												</button>
+						{#if showAltLogin}
+							<div transition:slide>
+								<form
+									class=" flex flex-col justify-center"
+									on:submit={(e) => {
+										e.preventDefault();
+										submitHandler();
+									}}
+								>
+									<div class="mb-1">
+										<div class=" text-2xl font-medium">
+											{#if $config?.onboarding ?? false}
+												{$i18n.t(`Get started with {{WEBUI_NAME}}`, { WEBUI_NAME: $WEBUI_NAME })}
+											{:else if mode === 'ldap'}
+												{$i18n.t(`Sign in to {{WEBUI_NAME}} with LDAP`, {
+													WEBUI_NAME: $WEBUI_NAME
+												})}
+											{:else if mode === 'signin'}
+												{$i18n.t(`Sign in to {{WEBUI_NAME}}`, { WEBUI_NAME: $WEBUI_NAME })}
+											{:else}
+												{$i18n.t(`Sign up to {{WEBUI_NAME}}`, { WEBUI_NAME: $WEBUI_NAME })}
+											{/if}
+										</div>
+
+										{#if $config?.onboarding ?? false}
+											<div class=" mt-1 text-xs font-medium text-gray-500">
+												ⓘ {$WEBUI_NAME}
+												{$i18n.t(
+													'does not make any external connections, and your data stays securely on your locally hosted server.'
+												)}
 											</div>
 										{/if}
+									</div>
+
+									{#if $config?.features.enable_login_form || $config?.features.enable_ldap}
+										<div class="flex flex-col mt-4">
+											{#if mode === 'signup'}
+												<div class="mb-2">
+													<div class=" text-sm font-medium text-left mb-1">{$i18n.t('Name')}</div>
+													<input
+														bind:value={name}
+														type="text"
+														class="my-0.5 w-full text-sm outline-hidden bg-transparent"
+														autocomplete="name"
+														placeholder={$i18n.t('Enter Your Full Name')}
+														required
+													/>
+												</div>
+											{/if}
+
+											{#if mode === 'ldap'}
+												<div class="mb-2">
+													<div class=" text-sm font-medium text-left mb-1">
+														{$i18n.t('Username')}
+													</div>
+													<input
+														bind:value={ldapUsername}
+														type="text"
+														class="my-0.5 w-full text-sm outline-hidden bg-transparent"
+														autocomplete="username"
+														name="username"
+														placeholder={$i18n.t('Enter Your Username')}
+														required
+													/>
+												</div>
+											{:else}
+												<div class="mb-2">
+													<div class=" text-sm font-medium text-left mb-1">{$i18n.t('Email')}</div>
+													<input
+														bind:value={email}
+														type="email"
+														class="my-0.5 w-full text-sm outline-hidden bg-transparent"
+														autocomplete="email"
+														name="email"
+														placeholder={$i18n.t('Enter Your Email')}
+														required
+													/>
+												</div>
+											{/if}
+
+											<div>
+												<div class=" text-sm font-medium text-left mb-1">{$i18n.t('Password')}</div>
+
+												<input
+													bind:value={password}
+													type="password"
+													class="my-0.5 w-full text-sm outline-hidden bg-transparent"
+													placeholder={$i18n.t('Enter Your Password')}
+													autocomplete="current-password"
+													name="current-password"
+													required
+												/>
+											</div>
+										</div>
 									{/if}
-								{/if}
+									<div class="mt-5">
+										{#if $config?.features.enable_login_form || $config?.features.enable_ldap}
+											{#if mode === 'ldap'}
+												<button
+													class="bg-gray-700/5 hover:bg-gray-700/10 dark:bg-gray-100/5 dark:hover:bg-gray-100/10 dark:text-gray-300 dark:hover:text-white transition w-full rounded-full font-medium text-sm py-2.5"
+													type="submit"
+												>
+													{$i18n.t('Authenticate')}
+												</button>
+											{:else}
+												<button
+													class="bg-gray-700/5 hover:bg-gray-700/10 dark:bg-gray-100/5 dark:hover:bg-gray-100/10 dark:text-gray-300 dark:hover:text-white transition w-full rounded-full font-medium text-sm py-2.5"
+													type="submit"
+												>
+													{mode === 'signin'
+														? $i18n.t('Sign in')
+														: ($config?.onboarding ?? false)
+															? $i18n.t('Create Admin Account')
+															: $i18n.t('Create Account')}
+												</button>
+
+												{#if $config?.features.enable_signup && !($config?.onboarding ?? false)}
+													<div class=" mt-4 text-sm text-center">
+														{mode === 'signin'
+															? $i18n.t("Don't have an account?")
+															: $i18n.t('Already have an account?')}
+
+														<button
+															class=" font-medium underline"
+															type="button"
+															on:click={() => {
+																if (mode === 'signin') {
+																	mode = 'signup';
+																} else {
+																	mode = 'signin';
+																}
+															}}
+														>
+															{mode === 'signin' ? $i18n.t('Sign up') : $i18n.t('Sign in')}
+														</button>
+													</div>
+												{/if}
+											{/if}
+										{/if}
+									</div>
+								</form>
 							</div>
-						</form>
+						{/if}
 
 						{#if Object.keys($config?.oauth?.providers ?? {}).length > 0}
-							<div class="inline-flex items-center justify-center w-full">
+							<!-- <div class="inline-flex items-center justify-center w-full">
 								<hr class="w-32 h-px my-4 border-0 dark:bg-gray-100/10 bg-gray-700/10" />
 								{#if $config?.features.enable_login_form || $config?.features.enable_ldap}
 									<span
@@ -356,7 +428,7 @@
 								{/if}
 
 								<hr class="w-32 h-px my-4 border-0 dark:bg-gray-100/10 bg-gray-700/10" />
-							</div>
+							</div> -->
 							<div class="flex flex-col space-y-2">
 								{#if $config?.oauth?.providers?.google}
 									<button
@@ -424,7 +496,7 @@
 										<span>{$i18n.t('Continue with {{provider}}', { provider: 'GitHub' })}</span>
 									</button>
 								{/if}
-								{#if $config?.oauth?.providers?.oidc}
+								<!-- {#if $config?.oauth?.providers?.oidc}
 									<button
 										class="flex justify-center items-center bg-gray-700/5 hover:bg-gray-700/10 dark:bg-gray-100/5 dark:hover:bg-gray-100/10 dark:text-gray-300 dark:hover:text-white transition w-full rounded-full font-medium text-sm py-2.5"
 										on:click={() => {
@@ -452,7 +524,7 @@
 											})}</span
 										>
 									</button>
-								{/if}
+								{/if} -->
 							</div>
 						{/if}
 
